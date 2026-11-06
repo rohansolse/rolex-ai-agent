@@ -164,6 +164,15 @@ the suite. The tests are now written against ffmpeg's actual output, and the
 fix is measured: a 14-second clip with 1.5 seconds of speech in it stopped
 after 2.6 seconds instead of running the full 15.
 
+**Permission has to be asked out loud, which the first version did not do.**
+In a voice session rolex printed `allow open_app(name='Google Chrome')? [y/N]`
+and waited at the keyboard — a question the user, who was speaking, never
+answered. In push-to-talk it was worse: the Enter meant for the next recording
+was swallowed by the prompt and read as a refusal, so rolex refused itself
+before the user could reply. It now speaks the question ("Open Google
+Chrome?"), listens for an answer, asks once more if it was unclear, and treats
+anything still unclear as no.
+
 **Not verified: the microphone itself.** Recording would have captured the
 user's room, so it was left for them to run. Everything downstream was tested
 on synthesised speech: `say` → wav → whisper → wake word → tool → spoken

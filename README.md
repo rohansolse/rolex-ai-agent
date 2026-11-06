@@ -110,7 +110,19 @@ heard  > how much battery do I have
        · battery_level()
        ·   Battery: 58% (discharging)
 rolex  > You have 58% battery left.          ← also spoken
+
+you say: "rolex, open chrome"
+heard  > open chrome
+       · Open Google Chrome?                 ← asked out loud
+you say: "yes"
+       ·   heard: yes
+       · open_app(name='Google Chrome')
+rolex  > Chrome is open.
 ```
+
+When rolex needs permission it asks out loud and waits for you to say yes or
+no. If it cannot make out your answer it asks once more, and then does
+nothing.
 
 If the room is noisy or it keeps mishearing the wake word:
 

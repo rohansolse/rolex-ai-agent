@@ -145,6 +145,13 @@ Two details that matter more than they look:
 
 - **With no way to ask, anything needing consent is refused.** A piped or
   scheduled run has nobody at the keyboard, and silence is not consent.
+- **How the user is asked depends on how they are talking.** Typing at
+  `rolex chat` gets a `[y/N]` prompt; speaking at `rolex listen` gets the
+  question spoken aloud and the answer listened for. Asking the wrong way is
+  not a cosmetic problem: the first voice version printed `[y/N]` to someone
+  who was speaking, and in push-to-talk the Enter meant for the next recording
+  answered the prompt instead, refusing before the user could say anything.
+  Anything not clearly a yes is a no.
 - **A refusal is reported to the model as a tool result beginning "Not
   done:".** Without that it answers as though the thing had happened. This was
   observed: told only "the user said no", the model replied "it seems the

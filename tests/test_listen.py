@@ -11,7 +11,7 @@ import pytest
 
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError
-from rolex.interface.listen import Ears, run_listen
+from rolex.interface.listen import Ears, SpokenConsent, _question, run_listen
 from rolex.llm.base import Message, Reply, ToolSchema
 from rolex.tools.base import Tool
 from rolex.voice.record import AudioError
@@ -310,3 +310,111 @@ def test_a_multi_line_tool_result_is_shown_whole(
     out = capsys.readouterr().out
     assert "Mac: arm64" in out
     assert "Memory: 8 GB" in out
+
+
+# --- permission, asked out loud -------------------------------------------
+
+
+class AskEars:
+    """Ears that answer the permission question from a script."""
+
+    def __init__(self, answers: Sequence[str]) -> None:
+        self.answers = list(answers)
+        self.windows: list[float | None] = []
+
+    def listen(self, *, seconds: float | None = None) -> str:
+        self.windows.append(seconds)
+        return self.answers.pop(0) if self.answers else ""
+
+
+def consent(answers: Sequence[str]) -> tuple[bool, AskEars, FakeSpeaker]:
+    ears = AskEars(answers)
+    voice = FakeSpeaker()
+    tool = Tool(name="open_app", description="d", run=lambda _: "", safety="mutating")
+    allowed = SpokenConsent(ears=ears, voice=voice).ask(tool, {"name": "Google Chrome"})  # type: ignore[arg-type]
+    return allowed, ears, voice
+
+
+def test_the_question_is_asked_out_loud() -> None:
+    """The user is speaking to rolex. A typed [y/N] goes unanswered."""
+    _, _, voice = consent(["yes"])
+    assert voice.said[0] == "Open Google Chrome?"
+
+
+def test_a_spoken_yes_allows_it() -> None:
+    allowed, _, _ = consent(["yes please"])
+    assert allowed
+
+
+def test_a_spoken_no_refuses_it() -> None:
+    allowed, _, _ = consent(["no"])
+    assert not allowed
+
+
+def test_an_unclear_answer_is_asked_again() -> None:
+    allowed, ears, voice = consent(["hmm", "yes"])
+    assert allowed
+    assert len(ears.windows) == 2
+    assert any("yes or a no" in said for said in voice.said)
+
+
+def test_silence_is_taken_as_no_after_asking_twice() -> None:
+    allowed, ears, voice = consent(["", ""])
+    assert not allowed
+    assert len(ears.windows) == 2
+    assert any("not done it" in said for said in voice.said)
+
+
+def test_a_microphone_failure_while_asking_is_a_no() -> None:
+    class Broken:
+        def listen(self, *, seconds: float | None = None) -> str:
+            raise AudioError("microphone gone")
+
+    tool = Tool(name="open_app", description="d", run=lambda _: "", safety="mutating")
+    assert not SpokenConsent(ears=Broken(), voice=FakeSpeaker()).ask(tool, {})  # type: ignore[arg-type]
+
+
+def test_the_consent_window_is_short() -> None:
+    """A yes or no is a word, not a speech."""
+    _, ears, _ = consent(["yes"])
+    assert ears.windows == [pytest.approx(4.0)]
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "arguments", "expected"),
+    [
+        ("open_app", {"name": "Safari"}, "Open Safari?"),
+        ("open_url", {"url": "https://example.com"}, "Open https://example.com in the browser?"),
+        ("search_web", {"query": "pune weather"}, "Search the web for pune weather?"),
+        ("some_tool", {}, "Run some tool?"),
+        ("some_tool", {"x": "1"}, "Run some tool with 1?"),
+    ],
+)
+def test_the_question_is_phrased_for_listening(
+    tool_name: str, arguments: dict[str, str], expected: str
+) -> None:
+    tool = Tool(name=tool_name, description="d", run=lambda _: "", safety="mutating")
+    assert _question(tool, arguments) == expected
+
+
+def test_a_mutating_tool_in_a_voice_session_is_asked_about_aloud() -> None:
+    """The whole path: heard a command, asked out loud, acted on the answer."""
+    from rolex.llm.base import ToolCall
+
+    opened: list[str] = []
+    app = Tool(
+        name="open_app",
+        description="d",
+        run=lambda args: opened.append(str(args.get("name"))) or "opened",  # type: ignore[func-returns-value]
+        safety="mutating",
+    )
+    wants = Reply(content="", tool_calls=(ToolCall("open_app", {"name": "Google Chrome"}),))
+
+    _, _, _, voice = listen(
+        ["rolex open chrome", "yes"],
+        [wants, "Chrome is open"],
+        tools=[app],
+    )
+
+    assert opened == ["Google Chrome"]
+    assert any("Open Google Chrome?" in said for said in voice.said)

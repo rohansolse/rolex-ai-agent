@@ -12,9 +12,10 @@ recording is deleted as soon as it has been transcribed.
 """
 
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from rolex.agent.consent import Policy
 from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
@@ -22,7 +23,6 @@ from rolex.core.config import Config
 from rolex.core.errors import ProviderError, RolexError
 from rolex.interface.chat import (
     STEP,
-    ask_at_terminal,
     explain_unavailable,
     short,
     system_prompt,
@@ -36,6 +36,7 @@ from rolex.voice.record import Recorder
 from rolex.voice.speak import Speaker
 from rolex.voice.transcribe import Transcriber
 from rolex.voice.wake import WAKE_WORD, strip
+from rolex.voice.yesno import understand
 
 LISTEN_WINDOW = 3.0
 """Seconds per clip while waiting for the wake word. Long enough to catch
@@ -43,6 +44,12 @@ LISTEN_WINDOW = 3.0
 reacts is not irritating."""
 
 QUIT_PHRASES = frozenset({"stop listening", "goodbye", "exit", "quit", "stop"})
+
+CONSENT_WINDOW = 4.0
+"""Seconds to wait for a spoken yes or no. A sentence, not a speech."""
+
+CONSENT_TRIES = 2
+"""How many times to ask before taking the silence as a no."""
 
 HEARD = "heard > "
 
@@ -65,6 +72,63 @@ class Ears:
             Path(recording).unlink(missing_ok=True)
 
 
+@dataclass(slots=True)
+class SpokenConsent:
+    """Asks permission out loud and listens for the answer."""
+
+    ears: "Ears"
+    voice: Speaker
+    tries: int = CONSENT_TRIES
+
+    def ask(self, tool: Tool, arguments: Mapping[str, Any]) -> bool:
+        """Put the question to the user and wait for a spoken yes or no.
+
+        Anything that is not clearly a yes is a no. Mishearing a refusal as
+        consent opens something the user did not want; mishearing consent as
+        unclear only costs them saying it again.
+        """
+        question = _question(tool, arguments)
+
+        for attempt in range(self.tries):
+            print(f"{STEP}{question}", flush=True)
+            self.voice.say(question)
+
+            try:
+                said = self.ears.listen(seconds=CONSENT_WINDOW)
+            except RolexError as exc:
+                print(f"{STEP}  could not hear an answer: {exc}", flush=True)
+                return False
+            except KeyboardInterrupt:
+                print()
+                return False
+
+            answer = understand(said)
+            if answer is not None:
+                print(f"{STEP}  heard: {said.strip() or '(nothing)'}", flush=True)
+                return answer
+
+            if attempt + 1 < self.tries:
+                self.voice.say("Sorry, was that a yes or a no?")
+
+        print(f"{STEP}  no clear answer — taking that as no", flush=True)
+        self.voice.say("I did not catch that, so I have not done it.")
+        return False
+
+
+def _question(tool: Tool, arguments: Mapping[str, Any]) -> str:
+    """The permission question, phrased for someone listening rather than reading."""
+    if tool.name == "open_app" and "name" in arguments:
+        return f"Open {arguments['name']}?"
+    if tool.name == "open_url" and "url" in arguments:
+        return f"Open {arguments['url']} in the browser?"
+    if tool.name == "search_web" and "query" in arguments:
+        return f"Search the web for {arguments['query']}?"
+
+    spoken = ", ".join(str(value) for value in arguments.values())
+    name = tool.name.replace("_", " ")
+    return f"Run {name}{f' with {spoken}' if spoken else ''}?"
+
+
 def run_listen(
     config: Config,
     *,
@@ -84,10 +148,15 @@ def run_listen(
     hearing = Ears(Recorder(config), Transcriber(config)) if ears is None else ears
     voice = Speaker(config) if speaker is None else speaker
 
+    # Asked out loud, not at the keyboard. The user is talking to rolex; a
+    # typed [y/N] goes unanswered, and in push-to-talk the Enter meant for the
+    # next recording was swallowed by the prompt and read as a refusal.
+    asker = SpokenConsent(ears=hearing, voice=voice)
+
     agent = Agent(
         provider=backend,
         tools=registered() if tools is None else tools,
-        policy=Policy(ask=ask_at_terminal, allow_destructive=config.allow_destructive),
+        policy=Policy(ask=asker.ask, allow_destructive=config.allow_destructive),
         history=[Message("system", system_prompt(config))],
     )
 

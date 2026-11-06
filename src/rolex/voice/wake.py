@@ -26,7 +26,7 @@ WAKE_WORD = "rolex"
 #: Letters that carry no information about how a word sounds here. Vowels
 #: because whisper guesses them from almost nothing, 'h' because it is silent
 #: in the middle of a word, 'y' because it behaves as a vowel.
-_SILENT = re.compile(r"[aeiouyh]")
+_SILENT = re.compile(r"[aeiouyh'’]")
 
 #: Spellings of the same sound. Applied before vowels are dropped.
 _SOUNDS = (("x", "ks"), ("c", "k"), ("q", "k"), ("ph", "f"), ("z", "s"))
@@ -34,7 +34,11 @@ _SOUNDS = (("x", "ks"), ("c", "k"), ("q", "k"), ("ph", "f"), ("z", "s"))
 #: A run of the same letter sounds like one of it: "rollex" and "rolex".
 _DOUBLED = re.compile(r"(.)\1+")
 
-_WORDS = re.compile(r"[a-z]+")
+#: A word, apostrophes included. Whisper writes the wake word as "Rolik's"
+#: often enough that splitting on the apostrophe — which left "rolik", whose
+#: skeleton is "rlk" rather than "rlks" — was the single commonest reason
+#: rolex ignored someone.
+_WORDS = re.compile(r"[a-z]+(?:['’][a-z]+)*")
 
 
 def skeleton(word: str) -> str:
