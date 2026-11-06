@@ -51,18 +51,30 @@ def test_a_repeated_utterance_is_not_reported_twice() -> None:
     assert feed(transcript, SECOND) == ["Rolex Open Google Chrome"]
 
 
-def test_the_buffer_emptying_is_not_mistaken_for_a_repeat() -> None:
-    """When the buffer is cleared the timestamps start again from zero, and
-    nothing would ever be reported again if that were read as old audio."""
+def test_the_window_moving_means_the_audio_is_new() -> None:
+    """Captured from a real run: asked the same question three times,
+    whisper-stream reported three blocks whose windows began at 417 ms,
+    23126 ms and 45743 ms. Judged by the words, the last two looked like
+    repeats and rolex ignored them — which is exactly what a dead
+    microphone looks like."""
     transcript = Transcript()
-    feed(transcript, SECOND)
+    asked = "[00:00:00.000 --> 00:00:09.280]   Rolex what is the time today?"
 
-    restarted = (
-        "### Transcription 2 START | t0 = 0 ms | t1 = 1800 ms\n"
-        "[00:00:00.000 --> 00:00:01.800]   What time is it\n"
-    )
+    for start, length in ((417, 10417), (23126, 33126), (45743, 55743)):
+        transcript.feed(f"### Transcription 0 START | t0 = {start} ms | t1 = {length} ms")
+        assert transcript.feed(asked) == ["Rolex what is the time today?"]
 
-    assert feed(transcript, restarted) == ["What time is it"]
+
+def test_the_same_window_transcribed_again_is_a_repeat() -> None:
+    """Two blocks sharing a start are the same audio, heard twice."""
+    transcript = Transcript()
+    asked = "[00:00:00.000 --> 00:00:08.000]   What time is it"
+
+    transcript.feed("### Transcription 0 START | t0 = 0 ms | t1 = 8627 ms")
+    assert transcript.feed(asked) == ["What time is it"]
+
+    transcript.feed("### Transcription 1 START | t0 = 0 ms | t1 = 14207 ms")
+    assert transcript.feed(asked) == []
 
 
 def test_blank_segments_are_ignored() -> None:
@@ -87,10 +99,9 @@ def test_everything_that_is_not_speech_is_ignored(line: str) -> None:
     assert Transcript().feed(line) == []
 
 
-def test_a_merged_re_transcription_yields_only_the_new_part() -> None:
-    """whisper sometimes reports a new sentence joined onto one already
-    heard. Reported whole, rolex answers the old question again; dropped
-    whole, the new command is lost."""
+def test_a_revised_segment_yields_only_the_words_added() -> None:
+    """A later block sometimes extends a sentence it reported before, with
+    words it had not heard yet. The extension is new; the rest is not."""
     transcript = Transcript()
     transcript.feed("### Transcription 0 START | t0 = 0 ms | t1 = 2000 ms")
     assert transcript.feed("[00:00:00.000 --> 00:00:02.000]   What time is it") == [
@@ -98,19 +109,23 @@ def test_a_merged_re_transcription_yields_only_the_new_part() -> None:
     ]
 
     transcript.feed("### Transcription 1 START | t0 = 0 ms | t1 = 5000 ms")
-    merged = "[00:00:00.000 --> 00:00:05.000]   What time is it Rolex open chrome"
-    assert transcript.feed(merged) == ["Rolex open chrome"]
+    longer = "[00:00:00.000 --> 00:00:05.000]   What time is it today"
+    assert transcript.feed(longer) == ["today"]
 
 
-def test_the_same_sentence_with_a_later_end_time_is_still_a_repeat() -> None:
-    """A re-transcription has had more audio, so it reports the same words
-    ending later. A timestamp alone cannot tell that from new speech."""
+def test_the_same_sentence_twice_within_one_window_is_heard_twice() -> None:
+    """Said twice quickly, both land in the same window as two segments."""
     transcript = Transcript()
+    asked = "[00:00:00.000 --> 00:00:02.000]   What is the time"
+
     transcript.feed("### Transcription 0 START | t0 = 0 ms | t1 = 2000 ms")
-    transcript.feed("[00:00:00.000 --> 00:00:02.000]   What time is it")
+    assert transcript.feed(asked) == ["What is the time"]
 
     transcript.feed("### Transcription 1 START | t0 = 0 ms | t1 = 9000 ms")
-    assert transcript.feed("[00:00:00.000 --> 00:00:08.000]   What time is it") == []
+    assert transcript.feed(asked) == []
+    assert transcript.feed("[00:00:06.000 --> 00:00:08.000]   What is the time") == [
+        "What is the time"
+    ]
 
 
 # --- the command ----------------------------------------------------------
@@ -184,7 +199,7 @@ def test_draining_leaves_the_queue_empty_and_nothing_reported_twice() -> None:
     stream.drain()
 
     assert stream.lines.empty()
-    assert "Rolex Open Google Chrome" in stream.transcript.said
+    assert "Rolex Open Google Chrome" in stream.transcript.reported
 
 
 # --- the loop's view of a stream ------------------------------------------

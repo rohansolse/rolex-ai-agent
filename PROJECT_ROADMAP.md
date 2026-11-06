@@ -277,6 +277,20 @@ round-trips and could stitch a report from two different tabs; it is now one.
 And the prompt did not mention `press_key`, so the model typed messages and
 never sent them.
 
+**After continuous listening shipped, rolex answered once and then went
+deaf.** It looked like the microphone dying; it was not. whisper-stream
+slides a window along the audio and labels each block with where that window
+begins and ends. The code watched the window's *length*, which only ever
+grows, so it never noticed the window moving — and since each block's
+segment timestamps restart at zero, every later block looked like the same
+audio transcribed again. Said the same thing twice, rolex ignored the second
+every time.
+
+Found by running whisper-stream directly and reading its output: three
+identical questions produced three blocks, beginning at 417 ms, 23126 ms and
+45743 ms. The window's *start* is what says whether audio is new. Verified
+after the fix: the same question asked three times was answered three times.
+
 **Known limitation: the active tab can change under us.** Every call targets
 whatever tab is in front at that moment, so `read_page` and a following
 `click_text` can land on different pages if the user switches tabs in

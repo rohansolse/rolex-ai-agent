@@ -47,30 +47,48 @@ class Transcript:
     Pure: no subprocess, no microphone. The parsing is where the mistakes
     are, and this way they can be made visible without saying anything out
     loud.
+
+    Each block of output re-transcribes the rolling buffer, so block two
+    repeats block one's sentences and adds any new ones. What is new is
+    therefore decided by *position in the block*, not by the words.
+
+    Matching on the words was tried first and was wrong in a way that took a
+    while to see: it meant the same sentence could only ever be said once.
+    Asked "what is the time today?" twice in a row, rolex answered the first
+    and sat silent through the second, which looked exactly like the
+    microphone having died.
     """
 
-    said: list[str] = field(default_factory=list)
-    """What has already been reported from the current buffer."""
+    reported: list[str] = field(default_factory=list)
+    """What has been reported from each position in the current buffer."""
 
-    buffer_ms: int = 0
-    """How much audio the last block covered. A drop means the rolling buffer
-    was emptied and everything in it is about to be transcribed afresh."""
+    position: int = 0
+    """How far through the current block we are."""
+
+    window_start_ms: int = -1
+    """Where in the session the last block's audio began.
+
+    This, not its length, is what says whether a block is new. whisper-stream
+    slides a window along: consecutive blocks sharing a start are
+    re-transcriptions of the same audio, and a block with a different start
+    is a different stretch of speech entirely — even if the words are
+    identical.
+
+    Watching the window's *length* instead is what made rolex answer a
+    question once and then sit silent when it was asked again, because the
+    length only ever grows.
+    """
 
     def feed(self, line: str) -> list[str]:
-        """What is newly spoken in this line of output, if anything.
-
-        Matched on the words rather than the timestamps. A re-transcription
-        reports the same sentence again with a *later* end time — it has had
-        more audio to work with — so a timestamp alone cannot tell a repeat
-        from something new.
-        """
+        """What is newly spoken in this line of output, if anything."""
         header = _HEADER.search(line)
         if header:
-            covered = int(header.group(2))
-            if covered < self.buffer_ms:
-                # The buffer was emptied; nothing in it has been heard before.
-                self.said.clear()
-            self.buffer_ms = covered
+            started = int(header.group(1))
+            if started != self.window_start_ms:
+                # A different stretch of audio. Nothing in it has been heard.
+                self.reported.clear()
+            self.window_start_ms = started
+            self.position = 0
             return []
 
         found = _SEGMENT.search(line)
@@ -81,26 +99,32 @@ class Transcript:
         if not spoken:
             return []
 
-        fresh = self._new_part(spoken)
-        if not fresh:
-            return []
+        index, self.position = self.position, self.position + 1
+        fresh = self._new_part(index, spoken)
+        return [fresh] if fresh else []
 
-        self.said.append(spoken)
-        return [fresh]
+    def _new_part(self, index: int, spoken: str) -> str:
+        """The part of this segment not already reported.
 
-    def _new_part(self, spoken: str) -> str:
-        """The part of `spoken` not already reported.
-
-        A re-transcription sometimes merges a new sentence onto the end of
-        one already heard. Reported whole, rolex would answer the old
-        question again; dropped whole, the new command would be lost.
+        A later block sometimes revises a sentence it reported before,
+        usually by extending it with words that had not been heard yet. The
+        extension is new; the rest is not.
         """
-        for earlier in reversed(self.said):
-            if spoken == earlier:
-                return ""
-            if spoken.startswith(earlier):
-                return spoken[len(earlier) :].strip()
-        return spoken
+        if index >= len(self.reported):
+            self.reported.append(spoken)
+            return spoken
+
+        earlier = self.reported[index]
+        if spoken == earlier:
+            return ""
+
+        self.reported[index] = spoken
+        if spoken.startswith(earlier):
+            return spoken[len(earlier) :].strip()
+
+        # Whisper changed its mind about words already reported. Saying them
+        # again would have rolex answer the same question twice.
+        return ""
 
 
 @dataclass(slots=True)

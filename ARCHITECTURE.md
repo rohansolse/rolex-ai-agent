@@ -208,11 +208,28 @@ into a clip had "today" cut off into the next one, where it was thrown away
 for having no wake word. That is not something a larger model can fix, since
 the sentence is already in two pieces before it arrives.
 
-whisper-stream re-transcribes a rolling buffer, so each block of output
-repeats everything before it. `Transcript` tracks how far it has read, by
-timestamp, and reports only what is new — and watches for the buffer being
-emptied, after which timestamps restart from zero and everything would
-otherwise look like old audio.
+whisper-stream slides a window along the audio and prints a block for each
+transcription, labelled with where that window begins and ends. Consecutive
+blocks sharing a start are the same audio heard again, and the later one
+repeats the earlier one's sentences; a block with a different start is a
+different stretch of speech. Segment timestamps are relative to the window,
+so they restart at zero in every block and say nothing about novelty.
+
+`Transcript` therefore keys on the window's **start**, and within a window
+reports a segment only if its position has not been reported before.
+
+Two readings of this were tried and both failed in the same direction — rolex
+answering once and then appearing deaf, which is indistinguishable from a
+dead microphone:
+
+- *Matching on the words.* A command could then only ever work once. Asked
+  "what is the time today?" twice, rolex answered the first and ignored the
+  second.
+- *Watching the window's length.* It only ever grows, so the window moving
+  was never noticed and every later block looked like a repeat.
+
+Both were caught by running whisper-stream by hand and reading its real
+output, not by the tests, which had been written from an imagined format.
 
 Clip recording is still there for `rolex talk`, which records only when
 asked, and for `ROLEX_STREAM=false`. What follows describes that path.
