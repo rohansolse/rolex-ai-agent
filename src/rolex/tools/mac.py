@@ -5,6 +5,7 @@ thing with this". Arguments are passed as a list and never through a shell, so
 a name the model invented cannot turn into a command.
 """
 
+import json
 import shutil
 import subprocess
 import urllib.parse
@@ -128,6 +129,69 @@ def _one_of(wanted: str, candidates: Sequence[str]) -> str:
         f"'{wanted}' matches several applications: {', '.join(candidates)}. "
         f"Ask the user which one they meant."
     )
+
+
+@register(
+    description="Close a Mac application, for example Chrome or Notes.",
+    safety="mutating",
+)
+def close_app(name: str) -> str:
+    """Quit an application.
+
+    Args:
+        name: The application's name, as said rather than as filed.
+    """
+    cleaned = name.strip()
+    if not cleaned:
+        raise ToolError("no application name was given")
+
+    resolved = resolve_app(cleaned, installed_apps())
+    if not _running(resolved):
+        return f"{resolved} is not running."
+
+    # `quit` rather than killing it: the application gets to save first, and
+    # is asked the same way as choosing Quit from its menu.
+    _osascript(f"tell application {_quote(resolved)} to quit")
+    return f"Closed {resolved}."
+
+
+def _running(name: str) -> bool:
+    """Whether an application is open right now."""
+    answer = _osascript(
+        f'tell application "System Events" to (name of processes) contains {_quote(name)}'
+    )
+    return answer.strip() == "true"
+
+
+def _osascript(script: str) -> str:
+    """Run one AppleScript line and return what it printed."""
+    executable = shutil.which("osascript")
+    if executable is None:
+        raise ToolError("this only works on macOS: osascript is not available")
+
+    try:
+        result = subprocess.run(
+            [executable, "-e", script],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ToolError(f"the application did not respond within {TIMEOUT:.0f} seconds") from exc
+
+    if result.returncode != 0:
+        raise ToolError(result.stderr.strip() or "the application would not do that")
+    return result.stdout.strip()
+
+
+def _quote(text: str) -> str:
+    """`text` as an AppleScript string literal.
+
+    ``ensure_ascii=False`` because AppleScript does not understand JSON's
+    ``\\uXXXX`` escapes and rejects them as a syntax error.
+    """
+    return json.dumps(text, ensure_ascii=False)
 
 
 @register(

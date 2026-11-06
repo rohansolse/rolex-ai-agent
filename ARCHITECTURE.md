@@ -302,6 +302,22 @@ Three details that are not obvious:
   Chrome forward and typing must be one script: as two, the window could
   still be coming forward when the keys arrived, and the first character
   landed somewhere else.
+- **A click has to be a real click.** Four ways were tried on WhatsApp Web.
+  `element.click()` and a full sequence of synthetic pointer events both
+  reported success and opened nothing — it listens for genuine input.
+  AppleScript's `System Events to click at` asks the accessibility layer to
+  press whatever is at a point, and a web page's internals are not
+  accessible elements, so it did nothing either, silently and with the
+  permission granted. A Quartz event, which is what a mouse produces, works.
+  It is reached through `ctypes`, so this adds no dependency, and it needs
+  Accessibility permission — which is checked before clicking, because
+  posting an event without it is dropped in silence.
+- **Numbers beat names on a busy page.** "Rohan Solse" appears both in
+  WhatsApp's chat list and inside the open conversation, and guessing picks
+  the wrong one. `page_buttons` numbers what it lists and `click_item` takes
+  a number, with the label passed back as a check: numbers go stale the
+  moment a click changes what is visible, and clicking the wrong
+  conversation and then typing sends a message to the wrong person.
 - **Exact labels win.** Taking the first substring match in DOM order means
   "Ram" clicks "Rama Sharma". Clicking tries an exact label, then one
   starting with the text, then one merely containing it.

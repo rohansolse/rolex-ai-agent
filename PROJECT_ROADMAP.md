@@ -296,11 +296,29 @@ whatever tab is in front at that moment, so `read_page` and a following
 `click_text` can land on different pages if the user switches tabs in
 between.
 
+**Clicking did not work at all at first, and said it had.** On WhatsApp Web,
+`element.click()` and synthetic pointer events both reported success and
+opened nothing; so did AppleScript's `System Events to click at`. Only a
+Quartz event — what a real mouse produces, reached through `ctypes` — opens
+a conversation. Verified by switching between two conversations and back.
+
+**Text alone is not enough to say what to click.** "Rohan Solse" matched a
+message inside the open conversation rather than the chat in the sidebar.
+`page_buttons` now numbers what it lists and `click_item` takes the number,
+checking the label before clicking so a stale number cannot open the wrong
+conversation.
+
+**`close_app` was missing.** Asked to close Chrome, rolex had no way to and
+flailed, repeating "click item 1" at the user. Opening something without
+being able to close it is half a tool.
+
 **Known limitation: a 3B model finds this hard.** Reading a page and deciding
 where to click is a great deal harder than telling the time. It worked on a
-simple page; a real chat application has hundreds of elements and the model
-will sometimes pick the wrong one. This is the strongest case yet for a
-larger model.
+simple page. On WhatsApp Web the tools work when driven by hand, but the
+model, asked to open a group on a page already in front of it, invented
+`https://www.whatsapp.com/groups/MBRJSelf` instead — twice, with the prompt
+telling it plainly not to. This is the strongest case yet for a larger
+model: the tools are no longer the limit.
 
 ## Phase 6 — Gemini fallback and provider switching · `todo`
 

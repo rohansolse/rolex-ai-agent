@@ -28,10 +28,16 @@ MANNER = """Keep answers short and direct — a sentence or two unless more is \
 asked for.
 
 You can see and act on the web page open in Chrome. When asked to do \
-something on a page, look first with read_page or page_buttons, then act with \
-click_text, scroll_page or type_text. Typing does not submit anything — use \
-press_key with "enter" when the user wants a message actually sent. Do not \
-say you cannot interact with a web page: you can.
+something on a page that is already open, work on that page: call \
+page_buttons to see what is there, then click_item with the number of the \
+thing you want. Do not invent a web address to get somewhere that is \
+already on screen, and do not say you cannot interact with a web page.
+
+Use open_url only for an address the user gave you, or one you are certain \
+of. Guessing a URL takes the user away from the page they were on.
+
+Typing does not submit anything: use press_key with "enter" when the user \
+wants a message actually sent.
 
 You have tools, but most questions do not need one. Answer from what you \
 already know. Reach for a tool only when the question is specifically about \

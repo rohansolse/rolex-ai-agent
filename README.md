@@ -88,12 +88,14 @@ know the time, so an answer with no `get_time` line above it would be invented.
 | `disk_space` | Free disk space | no |
 | `machine_info` | Memory, processor, macOS version | no |
 | `open_app` | Opens an application | **yes** |
+| `close_app` | Quits an application | **yes** |
 | `open_url` | Opens an http(s) page | **yes** |
 | `search_web` | Searches the web in the browser | **yes** |
 | `read_page` | Reads the page open in Chrome | no |
-| `page_buttons` | Lists what can be clicked | no |
+| `page_buttons` | Lists what can be clicked, numbered | no |
 | `scroll_page` | Scrolls the page | no |
 | `click_text` | Clicks something by its text | **yes** |
+| `click_item` | Clicks a numbered item from `page_buttons` | **yes** |
 | `type_text` | Types into the focused box | **yes** |
 | `press_key` | Presses Enter, Escape, Tab… | **yes** |
 
@@ -208,10 +210,21 @@ either is missing.
 Reading and scrolling happen without asking. Clicking and typing always ask —
 one wrong click sends a message to the wrong person.
 
+**Clicks are real clicks.** macOS has to allow them: System Settings →
+Privacy & Security → **Accessibility**, for whatever terminal runs rolex.
+Without it every click is thrown away in silence, so rolex checks first and
+says so rather than reporting success.
+
 On a simple page this works well. On a busy one like WhatsApp Web there can
-be hundreds of clickable things, and a 3B model will sometimes pick the wrong
-one. Ask it to `page_buttons` first if you want to see what it is choosing
-between.
+be hundreds of clickable things, and text alone is ambiguous — "Rohan Solse"
+appears both in the chat list and inside the open conversation. Ask for
+`page_buttons` and then click by number.
+
+**The model is the weak part, not the tools.** `qwen2.5:3b` will sometimes
+invent a web address instead of clicking what is already on screen, however
+plainly its instructions say otherwise. The tools themselves were verified by
+hand on WhatsApp Web: listing, clicking by number, and switching between
+conversations all work.
 
 ## Configuration
 

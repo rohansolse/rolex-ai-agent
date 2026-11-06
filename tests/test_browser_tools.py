@@ -48,7 +48,15 @@ class FakeRun:
 
 
 @pytest.fixture
-def chrome(monkeypatch: pytest.MonkeyPatch) -> FakeRun:
+def clicks(monkeypatch: pytest.MonkeyPatch) -> list[tuple[float, float]]:
+    """Records the real clicks that would have been sent, sending none."""
+    sent: list[tuple[float, float]] = []
+    monkeypatch.setattr("rolex.tools.pointer.click", lambda x, y: sent.append((x, y)))
+    return sent
+
+
+@pytest.fixture
+def chrome(monkeypatch: pytest.MonkeyPatch, clicks: list[tuple[float, float]]) -> FakeRun:
     fake = FakeRun()
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/osascript")
     monkeypatch.setattr("subprocess.run", fake)
@@ -120,14 +128,28 @@ def test_reading_never_asks_permission() -> None:
 # --- clicking -------------------------------------------------------------
 
 
-def test_clicking_sends_the_wanted_text(chrome: FakeRun) -> None:
-    chrome.answers = ["true", "MBRJ self group"]
+def spot(label: str = "MBRJ self group", x: int = 100, y: int = 200) -> str:
+    return json.dumps({"x": x, "y": y, "label": label})
+
+
+def test_clicking_sends_the_wanted_text(chrome: FakeRun, clicks: list[tuple[float, float]]) -> None:
+    chrome.answers = ["true", "", spot()]
     assert browser.click_text("MBRJ self group") == "Clicked MBRJ self group."
     assert json.dumps("mbrj self group") in chrome.javascript[-1].lower()
 
 
+def test_clicking_sends_a_real_click_at_the_right_place(
+    chrome: FakeRun, clicks: list[tuple[float, float]]
+) -> None:
+    """Synthetic DOM events and System Events both reported success and did
+    nothing on WhatsApp Web. Only a Quartz event opens a conversation."""
+    chrome.answers = ["true", "", spot(x=1771, y=629)]
+    browser.click_text("MBRJ self group")
+    assert clicks == [(1771.0, 629.0)]
+
+
 def test_clicking_something_absent_says_what_to_do(chrome: FakeRun) -> None:
-    chrome.answers = ["true", "missing:nowhere"]
+    chrome.answers = ["true", "", json.dumps({"missing": "nowhere"})]
     with pytest.raises(ToolError, match="page_buttons"):
         browser.click_text("nowhere")
 
@@ -287,10 +309,12 @@ def test_a_multi_line_message_is_refused(chrome: FakeRun, text: str) -> None:
     assert chrome.scripts == []
 
 
-def test_an_exact_label_is_preferred_over_a_longer_one(chrome: FakeRun) -> None:
+def test_an_exact_label_is_preferred_over_a_longer_one(
+    chrome: FakeRun, clicks: list[tuple[float, float]]
+) -> None:
     """Asked for "Ram", the first substring match in DOM order is "Rama
     Sharma" — a different person."""
-    chrome.answers = ["true", "Ram"]
+    chrome.answers = ["true", "", spot("Ram")]
     browser.click_text("Ram")
     script = chrome.javascript[-1]
     assert "lower === wanted" in script
@@ -305,7 +329,7 @@ def test_listing_and_clicking_judge_visibility_the_same_way(chrome: FakeRun) -> 
     listing = chrome.javascript[-1]
 
     chrome.scripts.clear()
-    chrome.answers = ["true", "a"]
+    chrome.answers = ["true", "", spot("a")]
     browser.click_text("a")
     clicking = chrome.javascript[-1]
 
@@ -336,4 +360,120 @@ def test_the_prompt_tells_the_model_typing_does_not_send() -> None:
 
     prompt = system_prompt(Config())
     assert "press_key" in prompt
-    assert "read_page" in prompt
+    assert "page_buttons" in prompt
+    assert "click_item" in prompt
+
+
+# --- clicking by number ---------------------------------------------------
+
+
+def test_the_listing_is_numbered(chrome: FakeRun) -> None:
+    """Text alone is ambiguous: asked to click "Rohan Solse" on WhatsApp
+    Web, those words appear both in the chat list and inside the open
+    conversation. Numbers let the model look first and then say which."""
+    chrome.answers = ["true", "1. Home Sweet Home\n2. MBRJ | Self"]
+    listed = browser.page_buttons()
+    assert "click_item" in listed
+    assert "2. MBRJ | Self" in listed
+
+
+def test_clicking_a_number_clicks_that_item(
+    chrome: FakeRun, clicks: list[tuple[float, float]]
+) -> None:
+    chrome.answers = ["true", "", spot("MBRJ | Self", x=280, y=632)]
+    assert browser.click_item(22) == "Clicked MBRJ | Self."
+    assert clicks == [(280.0, 632.0)]
+
+
+def test_the_number_is_counted_from_one(chrome: FakeRun) -> None:
+    """page_buttons prints 1, 2, 3; the list behind it starts at 0."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_item(1)
+    assert "out[0]" in chrome.javascript[-1]
+
+
+@pytest.mark.parametrize("number", [0, -3])
+def test_a_number_below_one_is_refused(chrome: FakeRun, number: int) -> None:
+    with pytest.raises(ToolError, match="starts at 1"):
+        browser.click_item(number)
+
+
+def test_a_number_sent_as_text_still_works(
+    chrome: FakeRun, clicks: list[tuple[float, float]]
+) -> None:
+    """A small model sends "3" as often as 3."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_item("3")
+    assert "out[2]" in chrome.javascript[-1]
+
+
+def test_something_that_is_not_a_number_is_refused(chrome: FakeRun) -> None:
+    with pytest.raises(ToolError, match="whole number"):
+        browser.click_item("the third one")
+
+
+def test_a_number_past_the_end_says_to_look_again(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "", json.dumps({"missing": 99})]
+    with pytest.raises(ToolError, match="page_buttons"):
+        browser.click_item(100)
+
+
+def test_clicking_by_number_asks_permission() -> None:
+    assert get("click_item").safety == "mutating"
+
+
+def test_a_stale_number_is_refused_rather_than_clicked(chrome: FakeRun) -> None:
+    """Numbers go stale the moment a click changes what is visible, and
+    clicking the wrong conversation then typing sends a message to the
+    wrong person."""
+    chrome.answers = ["true", "", spot("Rohan Solse")]
+    with pytest.raises(ToolError, match="page has changed"):
+        browser.click_item(22, expected="MBRJ | Self")
+
+
+def test_a_number_that_still_matches_is_clicked(
+    chrome: FakeRun, clicks: list[tuple[float, float]]
+) -> None:
+    chrome.answers = ["true", "", spot("MBRJ | Self 12:09 am")]
+    browser.click_item(22, expected="MBRJ | Self")
+    assert clicks
+
+
+def test_clicking_waits_for_chrome_to_come_forward(chrome: FakeRun) -> None:
+    """A real click goes wherever the pointer is told. If Chrome is still
+    behind the terminal when it lands, the terminal gets clicked."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_text("anything")
+    assert any("activate" in s and "delay" in s for s in chrome.scripts)
+
+
+def test_listing_and_locating_share_one_limit(chrome: FakeRun) -> None:
+    """Without the same cap, click_item(41) clicks something the user was
+    never shown."""
+    chrome.answers = ["true", "1. a"]
+    browser.page_buttons()
+    listing = chrome.javascript[-1]
+
+    chrome.scripts.clear()
+    chrome.answers = ["true", "", spot()]
+    browser.click_item(1)
+    locating = chrome.javascript[-1]
+
+    for script in (listing, locating):
+        assert "LIMIT" in script
+
+
+def test_coordinates_account_for_page_zoom(chrome: FakeRun) -> None:
+    """Zoom scales CSS pixels but not screenX or outerHeight; ignoring it
+    put the click a long way off and still called it a success."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_text("anything")
+    assert "outerWidth / window.innerWidth" in chrome.javascript[-1]
+
+
+def test_scrolling_into_view_is_instant(chrome: FakeRun) -> None:
+    """With scroll-behavior: smooth the page is still moving when the
+    rectangle is read."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_text("anything")
+    assert "behavior: 'instant'" in chrome.javascript[-1]

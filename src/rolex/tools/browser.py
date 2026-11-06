@@ -10,8 +10,8 @@ but the user has to switch it on once, under View -> Developer -> Allow
 JavaScript from Apple Events.
 
 Safety: looking changes nothing, so :func:`read_page`, :func:`page_buttons`
-and :func:`scroll_page` run unasked. :func:`click_text` and :func:`type_text`
-are ``mutating`` and asked about every time — one wrong click sends a message
+and :func:`scroll_page` run unasked. :func:`click_text`, :func:`click_item` and
+:func:`type_text` are ``mutating`` and asked about every time — one wrong click sends a message
 to the wrong person. :func:`press_key` is ``destructive``, because the key
 people ask for is Enter, and Enter is what sends the message.
 """
@@ -19,8 +19,10 @@ people ask for is Enter, and Enter is what sends the message.
 import json
 import shutil
 import subprocess
+from typing import Any
 
 from rolex.core.errors import ToolError
+from rolex.tools import pointer
 from rolex.tools.registry import register
 
 BROWSER = "Google Chrome"
@@ -92,6 +94,17 @@ def _explain(stderr: str) -> str:
 MISSING = "missing value"
 
 
+def _quote(text: str) -> str:
+    """`text` as an AppleScript string literal.
+
+    ``ensure_ascii=False`` matters: JSON would otherwise write a non-ASCII
+    character as ``\\uXXXX``, which AppleScript does not understand and
+    rejects as a syntax error. One em dash in a JavaScript comment broke
+    every click until this was found.
+    """
+    return json.dumps(text, ensure_ascii=False)
+
+
 def _javascript(source: str) -> str:
     """Run JavaScript in Chrome's active tab and return its result as text.
 
@@ -99,7 +112,7 @@ def _javascript(source: str) -> str:
     value", which would otherwise reach the model as if the page had said
     those words.
     """
-    quoted = json.dumps(source)
+    quoted = _quote(source)
     result = _osascript(
         f'tell application "{BROWSER}" to execute active tab of front window javascript {quoted}'
     )
@@ -140,18 +153,25 @@ def read_page() -> str:
     return f"Page: {page.get('title', '')}\nURL: {page.get('url', '')}\n\n{body}"
 
 
-@register(description="List the things that can be clicked on the page in Chrome.")
+@register(
+    description=(
+        "List the things that can be clicked on the page in Chrome, numbered. "
+        "Use this before clicking when the page has several similar items."
+    )
+)
 def page_buttons() -> str:
-    """The clickable things, by their visible text.
+    """The clickable things, numbered, by their visible text.
 
-    Named by what the user would say — "the MBRJ group", "Send" — because
-    that is what they will ask to be clicked.
+    Numbered because text alone is often ambiguous: asked to click "Rohan
+    Solse" on WhatsApp Web, the words appear both in the conversation list
+    and inside the open conversation, and guessing picks the wrong one. With
+    numbers the model can look first and then say exactly which.
     """
     _require_chrome()
     found = _javascript(_LIST_CLICKABLE)
     if not found:
         return "Nothing clickable was found on this page."
-    return f"Clickable on this page:\n{found}"
+    return f"Clickable on this page (click_item takes the number):\n{found}"
 
 
 #: Shared by listing and clicking, so the two can never disagree about what
@@ -159,6 +179,7 @@ def page_buttons() -> str:
 #: keeps its size while being `visibility: hidden` or fully transparent, and
 #: offering those for clicking means clicking something nobody can see.
 _CLICKABLE_JS = """
+  const LIMIT = 40;
   const SELECTOR =
     'a, button, [role=button], [role=listitem], [role=link], [role=row], input[type=submit]';
 
@@ -174,6 +195,33 @@ _CLICKABLE_JS = """
   const labelOf = (node) =>
     (node.innerText || node.value || node.getAttribute('aria-label') || '')
       .replace(/\\s+/g, ' ').trim();
+
+  // Where on the screen a node sits, so a real click can be sent to it.
+  //
+  // Synthetic DOM events were tried first and are not enough: WhatsApp Web
+  // reported every click as successful and opened nothing. It listens for
+  // genuine input, so rolex sends a genuine click through macOS and
+  // JavaScript only says where to aim. Coordinates are read after
+  // scrolling, because scrolling moves them.
+  const whereIs = (node) => {
+    // 'instant': with scroll-behavior: smooth the page is still moving when
+    // the rectangle is read, and the click lands on whatever slid into that
+    // spot instead.
+    node.scrollIntoView({block: 'center', behavior: 'instant'});
+    const box = node.getBoundingClientRect();
+
+    // Page zoom scales CSS pixels but not screenX, screenY or outerHeight,
+    // so the two have to be brought into the same units before adding. At
+    // 150% zoom, ignoring this puts the click a long way from the target
+    // and still calls it a success.
+    const zoom = window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+    const chromeHeight = window.outerHeight - window.innerHeight * zoom;
+
+    return {
+      x: Math.round(window.screenX + (box.left + box.width / 2) * zoom),
+      y: Math.round(window.screenY + chromeHeight + (box.top + box.height / 2) * zoom),
+    };
+  };
 """
 
 _LIST_CLICKABLE = (
@@ -189,8 +237,8 @@ _LIST_CLICKABLE = (
     const label = labelOf(node).slice(0, 80);
     if (!label || seen.has(label)) continue;
     seen.add(label);
-    out.push('- ' + label);
-    if (out.length >= 40) break;
+    out.push((out.length + 1) + '. ' + label);
+    if (out.length >= LIMIT) break;
   }
   return out.join('\\n');
 })()
@@ -216,13 +264,16 @@ def click_text(text: str) -> str:
         raise ToolError("nothing was given to click on")
 
     _require_chrome()
-    result = _javascript(_CLICK.replace("__WANTED__", json.dumps(wanted)))
+    _focus()
 
-    if result.startswith("missing:"):
-        raise ToolError(
-            f"nothing on the page says {wanted!r}. Use page_buttons to see what is there."
-        )
-    return f"Clicked {result or wanted}."
+    # Located and clicked in two steps, because the click is a real one: the
+    # page says where, and macOS does the clicking. Synthetic DOM events were
+    # tried first and WhatsApp Web ignored every one of them while reporting
+    # success.
+    found = _javascript(_CLICK.replace("__WANTED__", _quote(wanted)))
+    spot = _position(found, repr(wanted))
+    pointer.click(float(spot["x"]), float(spot["y"]))
+    return f"Clicked {spot.get('label') or wanted}."
 
 
 #: Exact label first, then one that starts with it, and only then one that
@@ -252,11 +303,101 @@ _CLICK = (
     const found = candidates.filter(test);
     if (found.length === 0) continue;
     const [node, label] = found[0];
-    node.scrollIntoView({block: 'center'});
-    node.click();
-    return label.slice(0, 80);
+    const at = whereIs(node);
+    return JSON.stringify({x: at.x, y: at.y, label: label.slice(0, 60)});
   }
-  return 'missing:' + wanted;
+  return JSON.stringify({missing: wanted});
+})()
+"""
+)
+
+
+@register(
+    description=(
+        "Click a numbered item from page_buttons. Use this instead of click_text "
+        "when several things on the page say something similar."
+    ),
+    safety="mutating",
+)
+def click_item(number: int, expected: str = "") -> str:
+    """Click the thing page_buttons listed as `number`.
+
+    Args:
+        number: Its number in the most recent page_buttons listing.
+        expected: What that line said, if known. Numbers go stale the moment
+            a click or a scroll changes what is visible, and clicking the
+            wrong conversation and then typing into it sends a message to
+            the wrong person. Given this, rolex checks before clicking.
+    """
+    try:
+        wanted = int(number)
+    except (TypeError, ValueError) as exc:
+        raise ToolError(f"number must be a whole number, got {number!r}") from exc
+    if wanted < 1:
+        raise ToolError(f"numbering starts at 1, got {wanted}")
+
+    _require_chrome()
+    _focus()
+
+    found = _javascript(_LOCATE_NTH.replace("__INDEX__", str(wanted - 1)))
+    spot = _position(found, f"item {wanted}")
+    label = str(spot.get("label") or "")
+
+    wanted_text = " ".join(expected.split()).casefold()
+    if wanted_text and wanted_text not in label.casefold():
+        raise ToolError(
+            f"item {wanted} is now {label!r}, not {expected!r}. The page has changed; "
+            f"call page_buttons again and use the new number."
+        )
+
+    pointer.click(float(spot["x"]), float(spot["y"]))
+    return f"Clicked {label or f'item {wanted}'}."
+
+
+def _focus() -> None:
+    """Bring Chrome forward and wait for it to get there.
+
+    The click is a real one and goes wherever the pointer is told, so if
+    Chrome is still behind the terminal when it lands, the terminal gets
+    clicked instead.
+    """
+    _osascript(f'tell application "{BROWSER}" to activate\ndelay {FOCUS_SETTLE}')
+
+
+def _position(found: str, what: str) -> dict[str, Any]:
+    """Read where something is, or say it was not there."""
+    try:
+        parsed: object = json.loads(found)
+    except json.JSONDecodeError as exc:
+        raise ToolError(f"could not look for {what} on the page") from exc
+
+    if not isinstance(parsed, dict):
+        raise ToolError(f"could not look for {what} on the page")
+    if "missing" in parsed:
+        raise ToolError(f"there is no {what} on this page. Use page_buttons to see what is there.")
+    return parsed
+
+
+_LOCATE_NTH = (
+    """
+(() => {
+"""
+    + _CLICKABLE_JS
+    + """
+  const seen = new Set();
+  const out = [];
+  for (const node of document.querySelectorAll(SELECTOR)) {
+    if (!visible(node)) continue;
+    const label = labelOf(node).slice(0, 80);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    out.push([node, label]);
+    if (out.length >= LIMIT) break;
+  }
+  const chosen = out[__INDEX__];
+  if (!chosen) return JSON.stringify({missing: __INDEX__});
+  const at = whereIs(chosen[0]);
+  return JSON.stringify({x: at.x, y: at.y, label: chosen[1].slice(0, 60)});
 })()
 """
 )
@@ -323,7 +464,7 @@ def type_text(text: str) -> str:
         )
 
     _require_chrome()
-    _type(f"keystroke {json.dumps(typed)}")
+    _type(f"keystroke {_quote(typed)}")
     return f"Typed {typed!r}."
 
 
