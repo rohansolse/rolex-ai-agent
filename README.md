@@ -102,7 +102,11 @@ tools yet, but the rule is in place before there are.
 make listen
 ```
 
-Say "rolex", then what you want. It answers out loud.
+Say "rolex", then what you want. It answers out loud. "hello rolex" and "hey
+rolex" work too.
+
+The microphone stays open and sentences end when you stop talking, not after
+a fixed number of seconds, so a long command does not get cut off halfway.
 
 ```
 you say: "rolex, how much battery do I have"

@@ -89,10 +89,28 @@ class Config:
     8 GB and already holds a 2 GB language model.
     """
 
+    transcribe_threads: int = 0
+    """Threads whisper may use. 0 means one fewer than the machine has, so a
+    long transcription does not make the rest of the system unusable."""
+
+    stream: bool = True
+    """Whether `rolex listen` keeps the microphone open rather than recording
+    in fixed clips. Clips lose whatever falls across a boundary."""
+
     audio_device: str = ""
-    """Which microphone, as ffmpeg's avfoundation index. Empty means the
-    system default. ``ffmpeg -f avfoundation -list_devices true -i ""`` lists
-    them."""
+    """Which microphone for clip recording, as ffmpeg's avfoundation index.
+    Empty means the system default. List them with:
+    ``ffmpeg -f avfoundation -list_devices true -i ""``"""
+
+    stream_device: str = ""
+    """Which microphone for continuous listening, as whisper-stream's SDL
+    capture index.
+
+    A separate setting because the two number their devices differently:
+    ffmpeg's avfoundation index and SDL's capture index are not the same
+    list, so one value cannot serve both without opening the wrong
+    microphone. Empty means the system default, which is almost always what
+    is wanted."""
 
     listen_seconds: float = 8.0
     """How long to record after the wake word before giving up on a sentence."""
@@ -118,6 +136,11 @@ class Config:
     """Default quiet: INFO lines land in the middle of the conversation and
     the terminal is the user's, not a log sink. ROLEX_LOG_LEVEL=DEBUG when
     diagnosing."""
+
+    @property
+    def threads(self) -> int:
+        """How many threads whisper should actually use."""
+        return self.transcribe_threads or max(1, (os.cpu_count() or 2) - 1)
 
     def require_gemini_key(self) -> str:
         """Return the Gemini key, or explain what is missing."""
@@ -186,6 +209,17 @@ def _as_positive_float(name: str, raw: object) -> float:
     return value
 
 
+def _as_threads(name: str, raw: object) -> int:
+    """Read a thread count. Zero means "decide for me"."""
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"{name} must be a whole number, got {raw!r}") from exc
+    if value < 0:
+        raise ConfigError(f"{name} cannot be negative, got {raw!r}")
+    return value
+
+
 def _as_bool(name: str, raw: object) -> bool:
     """Read a boolean from a config file or an environment string."""
     if isinstance(raw, bool):
@@ -239,6 +273,9 @@ _ENV_KEYS: dict[str, str] = {
     "allow_destructive": f"{ENV_PREFIX}ALLOW_DESTRUCTIVE",
     "whisper_model": f"{ENV_PREFIX}WHISPER_MODEL",
     "audio_device": f"{ENV_PREFIX}AUDIO_DEVICE",
+    "stream_device": f"{ENV_PREFIX}STREAM_DEVICE",
+    "stream": f"{ENV_PREFIX}STREAM",
+    "transcribe_threads": f"{ENV_PREFIX}TRANSCRIBE_THREADS",
     "listen_seconds": f"{ENV_PREFIX}LISTEN_SECONDS",
     "silence_seconds": f"{ENV_PREFIX}SILENCE_SECONDS",
     "speak": f"{ENV_PREFIX}SPEAK",
@@ -276,7 +313,9 @@ def _build(values: dict[str, Any]) -> Config:
             coerced[field.name] = Path(raw).expanduser()
         elif field.name == "request_timeout":
             coerced[field.name] = _as_positive_float(field.name, raw)
-        elif field.name in {"allow_destructive", "speak"}:
+        elif field.name == "transcribe_threads":
+            coerced[field.name] = _as_threads(field.name, raw)
+        elif field.name in {"allow_destructive", "speak", "stream"}:
             coerced[field.name] = _as_bool(field.name, raw)
         elif field.name == "whisper_model":
             coerced[field.name] = Path(raw).expanduser()

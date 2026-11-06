@@ -13,15 +13,16 @@ recording is deleted as soon as it has been transcribed.
 
 import contextlib
 import sys
+import time
 from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 from rolex.agent.consent import Policy
 from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.core.config import Config
-from rolex.core.errors import ProviderError, RolexError
+from rolex.core.errors import ProviderError, RolexError, StreamError
 from rolex.interface.chat import (
     STEP,
     explain_unavailable,
@@ -35,6 +36,7 @@ from rolex.tools import registered
 from rolex.tools.base import Tool
 from rolex.voice.record import Recorder, Recording
 from rolex.voice.speak import Speaker
+from rolex.voice.stream import Stream
 from rolex.voice.transcribe import Transcriber
 from rolex.voice.wake import WAKE_WORD, strip
 from rolex.voice.yesno import understand
@@ -49,10 +51,33 @@ QUIT_PHRASES = frozenset({"stop listening", "goodbye", "exit", "quit", "stop"})
 CONSENT_WINDOW = 4.0
 """Seconds to wait for a spoken yes or no. A sentence, not a speech."""
 
+FOLLOW_UP_SECONDS = 8.0
+"""How long to wait for the command after a bare "rolex".
+
+Bounded on purpose. Waiting for ever would mean a sentence spoken minutes
+later, to someone else, arriving as the command."""
+
 CONSENT_TRIES = 2
 """How many times to ask before taking the silence as a no."""
 
 HEARD = "heard > "
+
+
+class Hearing(Protocol):
+    """What the listen loop needs of a microphone, however it is held."""
+
+    def listen(self, *, seconds: float | None = None) -> str:
+        """The next utterance, or empty if nothing was said."""
+        ...
+
+    def next_clip(self, *, seconds: float) -> str:
+        """The next utterance while waiting for the wake word."""
+        ...
+
+    def discard(self) -> None:
+        """Throw away whatever was heard while rolex was busy."""
+        ...
+
 
 #: One worker: only ever one recording is in flight, and it must not outlive
 #: the process, so the threads are daemons.
@@ -143,10 +168,64 @@ class Ears:
 
 
 @dataclass(slots=True)
+class StreamEars:
+    """Hearing, from a microphone that is never closed.
+
+    The same three operations as :class:`Ears`, so the loop does not care
+    which it has. Nothing here records or deletes files: whisper-stream holds
+    the audio and never writes any.
+    """
+
+    stream: Stream
+    poll: float = 0.25
+    """How often to check the queue. Short enough that Ctrl-C lands promptly."""
+
+    def listen(self, *, seconds: float | None = None) -> str:
+        """The next utterance, waiting at most `seconds` for one.
+
+        Anything already queued is dropped first. The microphone stays open
+        while rolex speaks, so a question it has just asked out loud is
+        sitting in the queue — read as the user's answer, it would consume a
+        try and could refuse a tool the user had agreed to.
+        """
+        self.discard()
+        deadline = None if seconds is None else time.monotonic() + seconds
+        while deadline is None or time.monotonic() < deadline:
+            said = self.stream.listen(timeout=self.poll)
+            if said:
+                return said
+        return ""
+
+    def next_clip(self, *, seconds: float) -> str:
+        """The next utterance, however long it takes.
+
+        `seconds` is ignored here: there is no clip to size, and sentences
+        end when the speaker stops, which is the point of listening this
+        way. Waiting indefinitely is right only while nothing has been said
+        yet; :func:`_next_command` puts a limit on the follow-up.
+        """
+        said = ""
+        while not said:
+            said = self.listen(seconds=None)
+        return said
+
+    def discard(self) -> None:
+        """Throw away whatever was said while rolex was talking.
+
+        The microphone stays open while rolex answers, so it hears its own
+        voice.
+        """
+        self.stream.drain()
+
+    def close(self) -> None:
+        self.stream.stop()
+
+
+@dataclass(slots=True)
 class SpokenConsent:
     """Asks permission out loud and listens for the answer."""
 
-    ears: "Ears"
+    ears: "Hearing"
     voice: Speaker
     tries: int = CONSENT_TRIES
 
@@ -207,7 +286,7 @@ def run_listen(
     *,
     provider: LLMProvider | None = None,
     tools: Sequence[Tool] | None = None,
-    ears: Ears | None = None,
+    ears: "Hearing | None" = None,
     speaker: Speaker | None = None,
     push_to_talk: bool = False,
 ) -> int:
@@ -218,8 +297,13 @@ def run_listen(
         explain_unavailable(config, backend)
         return 1
 
-    hearing = Ears(Recorder(config), Transcriber(config)) if ears is None else ears
     voice = Speaker(config) if speaker is None else speaker
+
+    try:
+        hearing = _hearing(config, ears, push_to_talk=push_to_talk)
+    except RolexError as exc:
+        print(f"rolex: {exc}", file=sys.stderr)
+        return 1
 
     # Asked out loud, not at the keyboard. The user is talking to rolex; a
     # typed [y/N] goes unanswered, and in push-to-talk the Enter meant for the
@@ -233,18 +317,62 @@ def run_listen(
         history=[Message("system", system_prompt(config))],
     )
 
-    _greet(config, voice, push_to_talk=push_to_talk)
+    _greet(config, voice, push_to_talk=push_to_talk, streaming=isinstance(hearing, StreamEars))
 
+    try:
+        return _converse(agent, hearing, voice, push_to_talk=push_to_talk)
+    finally:
+        _close(hearing)
+
+
+def _hearing(config: Config, given: "Hearing | None", *, push_to_talk: bool) -> "Hearing":
+    """However rolex is going to hear: a given fake, a stream, or clips."""
+    if given is not None:
+        return given
+
+    # Push-to-talk records only when asked, so there is nothing to stream.
+    clips = Ears(Recorder(config), Transcriber(config))
+    if push_to_talk or not config.stream:
+        return clips
+
+    stream = Stream(config)
+    try:
+        stream.start()
+    except StreamError as exc:
+        # Clips lose words across their boundaries, but they work. Refusing
+        # to start at all would be worse for someone who has whisper-cli and
+        # not whisper-stream.
+        print(f"rolex: {exc}", file=sys.stderr)
+        print("rolex: listening in clips instead.\n", file=sys.stderr)
+        return clips
+    return StreamEars(stream)
+
+
+def _close(hearing: "Hearing") -> None:
+    """Let go of the microphone, however it was being held."""
+    closer = getattr(hearing, "close", None)
+    if closer is not None:
+        closer()
+    else:
+        hearing.discard()
+
+
+def _converse(
+    agent: Agent,
+    hearing: "Hearing",
+    voice: Speaker,
+    *,
+    push_to_talk: bool,
+) -> int:
+    """The listen loop itself."""
     while True:
         try:
             said = _next_command(hearing, push_to_talk=push_to_talk)
         except KeyboardInterrupt:
             print("\nStopped listening.")
-            hearing.discard()
             return 0
         except RolexError as exc:
             print(f"\nrolex: {exc}\n", file=sys.stderr)
-            hearing.discard()
             return 1
 
         if said is None:
@@ -252,7 +380,6 @@ def run_listen(
         if said.casefold().strip(" .!?") in QUIT_PHRASES:
             print("Stopped listening.")
             voice.say("Goodbye.")
-            hearing.discard()
             return 0
 
         print(f"{HEARD}{said}")
@@ -274,16 +401,20 @@ def run_listen(
             hearing.discard()
 
 
-def _greet(config: Config, voice: Speaker, *, push_to_talk: bool) -> None:
+def _greet(config: Config, voice: Speaker, *, push_to_talk: bool, streaming: bool) -> None:
     """Say what mode this is, and whether rolex will answer aloud."""
-    how = "press Enter to talk" if push_to_talk else f'say "{WAKE_WORD}" to start'
+    if push_to_talk:
+        how = "press Enter to talk"
+    else:
+        listening = "listening continuously" if streaming else "listening in clips"
+        how = f'say "{WAKE_WORD}" to start, {listening}'
     aloud = "speaking" if voice.available else "silent (no voice)"
     print(f"rolex listen — {how}. Answers {aloud}. Ctrl-C to stop.\n")
     if not config.whisper_model.is_file():
         print(f"{STEP}warning: no speech model at {config.whisper_model}\n", file=sys.stderr)
 
 
-def _next_command(ears: Ears, *, push_to_talk: bool) -> str | None:
+def _next_command(ears: "Hearing", *, push_to_talk: bool) -> str | None:
     """One command from the user, or None if nothing was said to rolex."""
     if push_to_talk:
         try:
@@ -304,12 +435,11 @@ def _next_command(ears: Ears, *, push_to_talk: bool) -> str | None:
     if rest:
         return rest
 
-    # Woken, but nothing asked yet. The next clip is already recording — it
-    # began the moment this one finished — so it holds the command the user
-    # is speaking right now. Taking it is both faster and avoids opening a
-    # second microphone alongside the one already running.
+    # Woken, but nothing asked yet. Wait a little for the command, then give
+    # up: waiting indefinitely would take some unrelated sentence a minute
+    # later as the command.
     print(f"{STEP}listening…", flush=True)
-    return ears.next_clip(seconds=LISTEN_WINDOW) or None
+    return ears.listen(seconds=FOLLOW_UP_SECONDS) or None
 
 
 def _answer(events: Iterable[Event], voice: Speaker) -> None:

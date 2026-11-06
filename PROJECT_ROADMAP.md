@@ -199,6 +199,26 @@ main thread now drops the clip in flight first.
 `say` also needed `--` before the text: an answer beginning with "- ", which
 the model does produce, was read as a flag and nothing was spoken at all.
 
+**Fixed-length clips had to go.** Recording three seconds at a time loses
+whatever falls across a boundary. Measured: "rolex what is the time today"
+takes 2.0 s to say, and when the speaker started 1.5 s into a clip it came
+out as "what is the time" with "today" in the next clip, where it was
+discarded for having no wake word. No larger model can reassemble a sentence
+cut in half before it arrives.
+
+`rolex listen` now keeps the microphone open through `whisper-stream` in
+voice-activity mode, so sentences end when the speaker stops rather than when
+a clock does. Verified: "hello rolex what is the time today" and "rolex open
+google chrome", spoken one after the other, both arrived whole. Clip
+recording stays for `rolex talk`, which only records when asked, and can be
+chosen with `ROLEX_STREAM=false`.
+
+**The wake word no longer has to be the first word.** "hello rolex", "hey
+rolex" and "okay rolex" are at least as common as "rolex" alone, and
+requiring the very first word meant ignoring all of them. It may now appear
+within the first three words, which still leaves "I bought a Rolex watch"
+alone.
+
 **Not verified: the microphone itself.** Recording would have captured the
 user's room, so it was left for them to run. Everything downstream was tested
 on synthesised speech: `say` → wav → whisper → wake word → tool → spoken

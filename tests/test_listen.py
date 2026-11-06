@@ -11,7 +11,14 @@ import pytest
 
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError
-from rolex.interface.listen import Ears, SpokenConsent, _question, run_listen
+from rolex.interface.listen import (
+    FOLLOW_UP_SECONDS,
+    Ears,
+    SpokenConsent,
+    _hearing,
+    _question,
+    run_listen,
+)
 from rolex.llm.base import Message, Reply, ToolSchema
 from rolex.tools.base import Tool
 from rolex.voice.record import AudioError, Recording
@@ -102,7 +109,7 @@ def listen(
         config or Config(),
         provider=provider,
         tools=tools,
-        ears=ears,  # type: ignore[arg-type]
+        ears=ears,
         speaker=voice,  # type: ignore[arg-type]
         push_to_talk=push_to_talk,
     )
@@ -155,12 +162,11 @@ def test_the_wake_word_alone_waits_for_the_command() -> None:
     assert provider.asked == ["what time is it"]
 
 
-def test_the_wake_word_alone_takes_the_clip_already_recording() -> None:
-    """Opening a second microphone alongside the running one splits the
-    utterance across two files, and fails outright on a device that cannot
-    be opened twice."""
+def test_the_wait_after_a_bare_wake_word_is_bounded() -> None:
+    """Waiting for ever would take a sentence spoken minutes later, to
+    someone else, as the command."""
     _, _, ears, _ = listen(["rolex", "what time is it"], ["four o'clock"])
-    assert ears.windows[:2] == [pytest.approx(3.0), pytest.approx(3.0)]
+    assert ears.windows[:2] == [pytest.approx(3.0), pytest.approx(FOLLOW_UP_SECONDS)]
 
 
 def test_the_wake_window_isshort() -> None:
@@ -219,7 +225,7 @@ def test_an_unavailable_model_stops_before_listening(
         Config(),
         provider=Unavailable([]),
         tools=[],
-        ears=ears,  # type: ignore[arg-type]
+        ears=ears,
         speaker=FakeSpeaker(),  # type: ignore[arg-type]
     )
 
@@ -616,3 +622,30 @@ def test_asking_permission_does_not_reuse_the_clip_of_its_own_question() -> None
     allowed, ears, _ = consent(["yes"])
     assert allowed
     assert ears.windows == [pytest.approx(4.0)]
+
+
+# --- choosing how to hear --------------------------------------------------
+
+
+def test_push_to_talk_records_clips_rather_than_streaming() -> None:
+    """Nothing to stream: it records only when asked."""
+    hearing = _hearing(Config(), None, push_to_talk=True)
+    assert isinstance(hearing, Ears)
+
+
+def test_streaming_can_be_turned_off() -> None:
+    hearing = _hearing(Config(stream=False), None, push_to_talk=False)
+    assert isinstance(hearing, Ears)
+
+
+def test_a_missing_whisper_stream_falls_back_to_clips(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Clips lose words across boundaries, but they work. Refusing to start
+    would be worse for someone who has whisper-cli and not whisper-stream."""
+    monkeypatch.setattr("shutil.which", lambda _: None)
+
+    hearing = _hearing(Config(stream=True), None, push_to_talk=False)
+
+    assert isinstance(hearing, Ears)
+    assert "listening in clips instead" in capsys.readouterr().err

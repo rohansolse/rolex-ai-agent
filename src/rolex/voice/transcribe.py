@@ -5,7 +5,6 @@ pull in ctranslate2 and friends — several hundred megabytes on a machine with
 13 GB free — for a job a command-line call does perfectly well.
 """
 
-import os
 import re
 import shutil
 import subprocess
@@ -65,7 +64,7 @@ class Transcriber:
             # One thread fewer than the machine has, so a long transcription
             # does not make the rest of the system unusable.
             "--threads",
-            str(max(1, (os.cpu_count() or 2) - 1)),
+            str(self.config.threads),
         ]
 
         try:

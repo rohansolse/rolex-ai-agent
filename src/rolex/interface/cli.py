@@ -113,6 +113,7 @@ def _voice_report(config: Config) -> list[tuple[str, str]]:
     return [
         ("ffmpeg", _found("ffmpeg", "brew install ffmpeg")),
         ("whisper", _found("whisper-cli", "brew install whisper-cpp")),
+        ("streaming", _streaming(config)),
         ("say", _found("say", "not available on this system")),
         ("speech model", _model_state(model)),
         ("speaking", "on" if config.speak else "off (ROLEX_SPEAK=true to enable)"),
@@ -134,6 +135,14 @@ def _model_state(model: Path) -> str:
     if size < MIN_MODEL_BYTES:
         return f"TRUNCATED at {model} ({size} bytes) — delete it, then: make whisper-model"
     return f"{model} ({size / 1_000_000:.0f} MB)"
+
+
+def _streaming(config: Config) -> str:
+    """Whether the microphone is kept open, and whether it can be."""
+    if not config.stream:
+        return "off — listening in clips (ROLEX_STREAM=true to keep the mic open)"
+    found = shutil.which("whisper-stream")
+    return found if found else "MISSING whisper-stream — brew install whisper-cpp"
 
 
 def _found(executable: str, remedy: str) -> str:

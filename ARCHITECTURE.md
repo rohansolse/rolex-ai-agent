@@ -196,6 +196,27 @@ Each clip is deleted as soon as it is transcribed — including when Ctrl-C
 lands mid-recording — because a recording of someone's room is not something
 to leave in `/tmp`.
 
+### Hearing whole sentences
+
+`rolex listen` keeps the microphone open and lets `whisper-stream` decide
+where sentences end, from voice activity rather than a clock.
+
+Fixed-length clips were tried first and are the reason this exists. A
+three-second clip loses whatever falls across its boundary: "rolex what is
+the time today" takes 2.0 seconds to say, and a speaker starting 1.5 seconds
+into a clip had "today" cut off into the next one, where it was thrown away
+for having no wake word. That is not something a larger model can fix, since
+the sentence is already in two pieces before it arrives.
+
+whisper-stream re-transcribes a rolling buffer, so each block of output
+repeats everything before it. `Transcript` tracks how far it has read, by
+timestamp, and reports only what is new — and watches for the buffer being
+emptied, after which timestamps restart from zero and everything would
+otherwise look like old audio.
+
+Clip recording is still there for `rolex talk`, which records only when
+asked, and for `ROLEX_STREAM=false`. What follows describes that path.
+
 ### Never shutting the microphone
 
 The wake-word loop records the next clip before transcribing the last one.

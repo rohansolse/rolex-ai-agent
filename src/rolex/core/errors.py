@@ -28,3 +28,7 @@ class UnreachableError(ProviderError):
     Separate from :class:`ProviderError` because it is the one failure with an
     obvious fix — start the server — and callers add that advice.
     """
+
+
+class StreamError(RolexError):
+    """Continuous listening could not be started or kept running."""
