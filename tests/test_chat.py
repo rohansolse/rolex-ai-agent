@@ -4,9 +4,9 @@ from collections.abc import Iterator
 
 import pytest
 
-from rolex.core.config import Config
+from rolex.core.config import Config, ProviderName
 from rolex.core.errors import ProviderError, UnreachableError
-from rolex.interface.chat import HISTORY_TURNS, _trim, run_chat
+from rolex.interface.chat import HISTORY_TURNS, _trim, run_chat, system_prompt
 from rolex.llm.base import Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
 
@@ -260,3 +260,17 @@ def test_trimming_never_starts_the_history_with_a_tool_result() -> None:
 
     assert trimmed[0].role == "system"
     assert trimmed[1].role != "tool"
+
+
+def test_the_local_prompt_says_it_is_offline() -> None:
+    assert "no internet connection" in system_prompt(Config(provider="local"))
+
+
+def test_a_hosted_prompt_does_not_claim_to_be_offline() -> None:
+    """Saying it for a hosted provider would be a lie the model repeats."""
+    assert "no internet" not in system_prompt(Config(provider="gemini"))
+
+
+@pytest.mark.parametrize("provider", ["local", "gemini"])
+def test_every_prompt_names_rolex(provider: ProviderName) -> None:
+    assert "rolex" in system_prompt(Config(provider=provider))

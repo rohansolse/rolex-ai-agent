@@ -18,14 +18,14 @@ USAGE = """usage: rolex <command>
 rolex is a voice-driven assistant that runs on a local LLM.
 
 commands:
-  chat            talk to the model (no tools yet)
+  chat            talk to rolex
   doctor          check that everything rolex needs is in place
 
   -V, --version   print the version and exit
   -h, --help      print this message and exit
 
-Phase 1: chat only. Tools land in Phase 3, voice in Phase 4.
-See PROJECT_ROADMAP.md."""
+rolex can use tools, but has only one so far. More land in Phase 3, voice in
+Phase 4. See PROJECT_ROADMAP.md."""
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -111,6 +111,11 @@ each as something to recover from rather than an error:
 | Calls a tool that raises | Replies with the failure text, so it can say so or try something else |
 | Keeps calling tools forever | Stops after `MAX_ROUNDS` and asks once more with no tools offered |
 | Sends junk in a tool call | The provider drops the malformed call and keeps the rest |
+| Replies with nothing at all | The loop asks again rather than showing a blank answer |
+
+Temperature is pinned at 0.2 rather than Ollama's default 0.8. Whether to call
+a tool is a judgement that should come out the same way every time; at 0.8 it
+did not, and the same question got a tool one run and not the next.
 
 Nothing here raises. A turn ends with an answer or with a provider failure —
 never with a traceback caused by the model being bad at its job.

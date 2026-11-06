@@ -80,11 +80,13 @@ open an app, search the web, or touch a file — those tools arrive in Phase 3,
 and voice in Phase 4.
 
 `qwen2.5:3b` is a small model, chosen because 8 GB of RAM will not hold a
-larger one. In testing it answered English well and understood simple
-romanised Marathi such as "browser open kar", but its Marathi replies were
-poor and it misread words like "guniley". It is therefore told to understand
-any language and answer in English. If that is not good enough, the options
-are a bigger model or the free-tier Gemini fallback in Phase 5.
+larger one. **Ask it in English.** In testing it handled English reliably —
+answering, and choosing correctly whether to use a tool, 9 times out of 9
+across repeated runs. Romanised Marathi it handles unpredictably: it
+understood "aaj kaay var ahe?" but not "kasa ahes" or "vel kiti zala", where
+it either invents a translation or answers with something copied out of its
+own instructions. That is a limit of the model's size, not of the prompt, and
+the fix is the free-tier Gemini provider in Phase 5.
 
 ## If the repo is on an external drive
 
@@ -109,7 +111,8 @@ environment (including `.env`). Every key is listed in
 [.env.example](.env.example).
 
 ```bash
-ROLEX_MODEL=llama3.2:3b make chat    # one run, different model
+ROLEX_MODEL=llama3.2:3b make chat     # one run, different model
+ROLEX_TEMPERATURE=0.8 make chat       # chattier, but worse at choosing tools
 ```
 
 ## Layout

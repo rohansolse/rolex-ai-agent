@@ -313,3 +313,48 @@ def test_a_model_that_only_ever_replies_empty_still_terminates() -> None:
     events = collect(agent.ask("go"))
 
     assert answer_of(events).gave_up
+
+
+def test_a_tool_returning_something_unserialisable_is_handled() -> None:
+    """Serialising the result is still the tool misbehaving, not the agent."""
+
+    class Opaque:
+        pass
+
+    provider = ScriptedProvider([calls("weird"), says("that went badly")])
+    weird = Tool(name="weird", description="d", run=lambda _: Opaque())  # type: ignore[arg-type,return-value]
+    agent = Agent(provider, tools=[weird])
+
+    events = collect(agent.ask("go"))
+
+    finished = events[1]
+    assert isinstance(finished, ToolFinished)
+    assert finished.failed
+    assert answer_of(events).content == "that went badly"
+
+
+def test_the_nudge_is_not_kept_in_history() -> None:
+    """Kept, it reads ever after as the user complaining about a blank reply."""
+    provider = ScriptedProvider([says(""), says("real answer")])
+    agent = Agent(provider, history=[Message("system", "s")])
+
+    collect(agent.ask("go"))
+
+    assert [m.content for m in agent.history] == ["s", "go", "real answer"]
+
+
+def test_the_nudge_is_still_sent_in_the_same_turn() -> None:
+    provider = ScriptedProvider([says(""), says("ok")])
+    collect(Agent(provider).ask("go"))
+    assert any("empty" in m.content for m in provider.seen[1])
+
+
+def test_giving_up_with_nothing_to_say_still_says_something() -> None:
+    provider = ScriptedProvider([calls("echo"), says("")])
+    agent = Agent(provider, tools=[tool()], max_rounds=1)
+
+    events = collect(agent.ask("go"))
+
+    assert answer_of(events).gave_up
+    assert answer_of(events).content.strip()
+    assert agent.history[-1].content.strip()

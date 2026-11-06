@@ -70,6 +70,15 @@ class Config:
     request_timeout: float = 120.0
     """Seconds to wait for a reply. A small model on CPU can be slow."""
 
+    temperature: float = 0.2
+    """How much the model is allowed to vary its answer.
+
+    Deliberately far below the usual 0.8. Deciding whether to call a tool is a
+    judgement the model should make the same way every time; at 0.8 the same
+    question gets a tool one minute and not the next, which reads to the user
+    as rolex being erratic. Creativity is not what is wanted here.
+    """
+
     log_level: str = "INFO"
 
     def require_gemini_key(self) -> str:
@@ -160,6 +169,7 @@ _ENV_KEYS: dict[str, str] = {
     "model": f"{ENV_PREFIX}MODEL",
     "log_level": f"{ENV_PREFIX}LOG_LEVEL",
     "request_timeout": f"{ENV_PREFIX}REQUEST_TIMEOUT",
+    "temperature": f"{ENV_PREFIX}TEMPERATURE",
     "ollama_host": "OLLAMA_HOST",
     "ollama_models_dir": "OLLAMA_MODELS",
     "gemini_api_key": "GEMINI_API_KEY",
@@ -198,6 +208,13 @@ def _build(values: dict[str, Any]) -> Config:
                 raise ConfigError(f"request_timeout must be a number, got {raw!r}") from exc
             if coerced[field.name] <= 0:
                 raise ConfigError(f"request_timeout must be positive, got {raw!r}")
+        elif field.name == "temperature":
+            try:
+                coerced[field.name] = float(raw)
+            except (TypeError, ValueError) as exc:
+                raise ConfigError(f"temperature must be a number, got {raw!r}") from exc
+            if not 0.0 <= coerced[field.name] <= 2.0:
+                raise ConfigError(f"temperature must be between 0 and 2, got {raw!r}")
         else:
             coerced[field.name] = str(raw)
 

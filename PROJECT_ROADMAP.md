@@ -66,12 +66,31 @@ Verified against the real `qwen2.5:3b`. Tool *choice* is sound: it called
 `get_time` for "what time is it?" and did not call it for "what is 2+2?",
 "who are you?" or "what is the capital of France?".
 
-**Romanised Marathi is unreliable, and worse than Phase 1 suggested.** "aaj
-kaay var ahe?" worked, but "aata kiti vajle?" and "vel kiti zala" did not —
-the model invented translations ("How old are you?") rather than calling the
-tool. So rolex understands *some* romanised Marathi, unpredictably. For
-spoken commands in Phase 4 this is not good enough, and it is now the
-strongest argument for pulling the Gemini provider forward.
+**Tool choice was erratic until temperature was pinned down.** In use, the
+model called `get_time` for "kasa ahes" and for "are you connected to the
+internet?". The cause was Ollama's default temperature of 0.8: the same
+question got a tool one minute and not the next. `temperature` is now a
+setting, defaulting to 0.2, and the tool description says plainly when *not*
+to use it. Measured over three runs of nine prompts afterwards: 9/9 correct
+each time, where before it was 8/9 and varied run to run.
+
+**The model claimed to be online.** It now knows from its prompt that it is
+not, and says so.
+
+**Romanised Marathi is the one thing that does not work, and tuning will not
+fix it.** "aaj kaay var ahe?" worked; "aata kiti vajle?", "vel kiti zala" and
+"kasa ahes" did not. The model invents translations ("How old are you?") or,
+when it has no idea, answers by copying the tool description back at the user.
+The same questions in English are handled correctly every time.
+
+Three attempts were made at the tool description, from terse to heavily
+worded. All three scored 9/9 on tool choice and none fixed the Marathi
+behaviour, because the failure is comprehension, not instruction. The shortest
+was kept, since the longest was the one that got copied back.
+
+This is a hard limit of a 3B model, and it is now the decisive argument for
+the Gemini provider: Phase 4 is spoken commands, and rolex cannot reliably
+understand the user's own language.
 
 **Traded away.** Answers no longer stream in as they are typed. A reply can
 only be streamed if we know in advance no tool is coming, and we do not. The

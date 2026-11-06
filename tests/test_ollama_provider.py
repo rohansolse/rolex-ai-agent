@@ -118,7 +118,13 @@ def test_request_carries_model_and_messages() -> None:
         "model": "qwen2.5:3b",
         "messages": [{"role": "user", "content": "hi"}],
         "stream": False,
+        "options": {"temperature": 0.2},
     }
+
+
+def test_temperature_comes_from_config() -> None:
+    body = make(FakeTransport(), temperature=0.9).build_body([], None, stream=False)
+    assert body["options"]["temperature"] == 0.9
 
 
 def test_tools_are_sent_in_openai_function_shape() -> None:

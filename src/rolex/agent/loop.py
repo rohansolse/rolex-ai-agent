@@ -26,6 +26,8 @@ _EMPTY_REPLY_NUDGE = (
     "or call one of the tools listed above."
 )
 
+_NOTHING_TO_SAY = "I could not work that out. Try asking in a different way."
+
 MAX_ROUNDS = 6
 """How many tool rounds before giving up.
 
@@ -102,9 +104,13 @@ class Agent:
         abandoned turn leaves nothing half-finished behind.
         """
         turn: list[Message] = [Message("user", question)]
+        # Prodding the model into saying something is scaffolding for this
+        # turn only. Committed to history it would read, ever after, as the
+        # user standing over it complaining about an empty reply.
+        nudges: list[Message] = []
 
         for round_number in range(self.max_rounds):
-            reply = self.provider.complete(self.history + turn, self.schemas)
+            reply = self.provider.complete(self.history + turn + nudges, self.schemas)
 
             if not reply.wants_tool:
                 if reply.content.strip():
@@ -117,7 +123,7 @@ class Agent:
                 # not kept — replaying it only teaches the model that saying
                 # nothing is acceptable — so the nudge replaces it.
                 log.debug("round %d: empty reply, prompting for a real one", round_number + 1)
-                turn.append(Message("user", _EMPTY_REPLY_NUDGE))
+                nudges.append(Message("user", _EMPTY_REPLY_NUDGE))
                 continue
 
             turn.append(reply.as_message())
@@ -132,9 +138,10 @@ class Agent:
         # to put what it found into words instead of reaching for another tool.
         # History is only extended once that call succeeds: committing first
         # would leave a tool request with no answer in every later request.
-        final = self.provider.complete(self.history + turn, [])
-        self.history.extend([*turn, final.as_message()])
-        yield Answer(final.content, gave_up=True)
+        final = self.provider.complete(self.history + turn + nudges, [])
+        content = final.content.strip() or _NOTHING_TO_SAY
+        self.history.extend([*turn, Message("assistant", content)])
+        yield Answer(content, gave_up=True)
 
     def _invoke(self, call: ToolCall, turn: list[Message]) -> Iterator[Event]:
         """Run one tool call and append its result to the turn."""
@@ -153,14 +160,16 @@ class Agent:
 
         try:
             result = tool.run(call.arguments)
+            # Inside the guard: a tool returning something unserialisable is
+            # the tool misbehaving, and must be handled the same way.
+            text = result if isinstance(result, str) else json.dumps(result)
         # Broad on purpose: a tool misbehaving must not take the agent down.
         except Exception as exc:
             log.warning("tool %s failed: %s", tool.name, exc, exc_info=True)
-            result = f"The tool '{tool.name}' failed: {exc}"
-            turn.append(Message.tool_result(tool.name, result))
-            yield ToolFinished(tool.name, result, failed=True)
+            text = f"The tool '{tool.name}' failed: {exc}"
+            turn.append(Message.tool_result(tool.name, text))
+            yield ToolFinished(tool.name, text, failed=True)
             return
 
-        text = result if isinstance(result, str) else json.dumps(result)
         turn.append(Message.tool_result(tool.name, text))
         yield ToolFinished(tool.name, text)

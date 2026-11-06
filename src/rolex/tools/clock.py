@@ -25,10 +25,11 @@ def current_time(_: Mapping[str, Any], *, now: datetime | None = None) -> str:
 
 get_time = Tool(
     name="get_time",
-    description=(
-        "Get the current date and time on this computer. "
-        "Use this whenever the user asks what time or what day it is."
-    ),
+    # Short on purpose. A longer description with "do not use it for..."
+    # warnings scored no better at choosing, and a 3B model that does not
+    # understand the question sometimes answers by copying the description
+    # back at the user. Measured: the long version did that, this does not.
+    description=("Get the current date and time. Use only when asked what time or what day it is."),
     run=current_time,
     safety="read_only",
 )

@@ -98,6 +98,7 @@ class OllamaProvider:
             "model": self.config.model,
             "messages": [message.as_dict() for message in messages],
             "stream": stream,
+            "options": {"temperature": self.config.temperature},
         }
         if tools:
             body["tools"] = [

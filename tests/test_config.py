@@ -114,3 +114,18 @@ def test_dotenv_keeps_a_hash_with_no_space_before_it(tmp_path: Path) -> None:
     """`a#b` is a value, not a comment — only ` #` starts one."""
     (tmp_path / ".env").write_text("GEMINI_API_KEY=abc#123\n")
     assert load_config(root=tmp_path, env={}).gemini_api_key == "abc#123"
+
+
+def test_temperature_defaults_low(tmp_path: Path) -> None:
+    """Tool choice should not be a coin flip."""
+    assert load_config(root=tmp_path, env={}).temperature == 0.2
+
+
+def test_temperature_is_coerced(tmp_path: Path) -> None:
+    assert load_config(root=tmp_path, env={"ROLEX_TEMPERATURE": "0"}).temperature == 0.0
+
+
+@pytest.mark.parametrize("value", ["hot", "-1", "2.5"])
+def test_bad_temperature_is_rejected(tmp_path: Path, value: str) -> None:
+    with pytest.raises(ConfigError, match="temperature"):
+        load_config(root=tmp_path, env={"ROLEX_TEMPERATURE": value})
