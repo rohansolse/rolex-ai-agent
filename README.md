@@ -53,14 +53,10 @@ Two things to know, both caused by the same thing — macOS writes AppleDouble
 (`._name`) sidecar files on filesystems that cannot store extended attributes.
 
 **The virtualenv has to live elsewhere.** Those sidecars corrupt wheel
-installs, so `make` puts the venv at `~/.venvs/rolex` instead of `./.venv`.
-`make` handles it, but a bare `uv` command does not — export the same values
-first, or just use `make`:
-
-```bash
-export UV_PROJECT_ENVIRONMENT="$HOME/.venvs/rolex"
-export UV_LINK_MODE=copy
-```
+installs, so `make install` creates the venv at `~/.venvs/rolex` and points
+`./.venv` at it as a symlink. Plain `uv run` then works here as it does
+anywhere else. Run `make install` first; a bare `uv sync` would build a real
+`./.venv` on the volume and fail partway through.
 
 **Model weights have to live on the external drive.** The internal disk is
 nearly full, so `.env.example` points `OLLAMA_MODELS` at `/Volumes/DEVHAN`.
