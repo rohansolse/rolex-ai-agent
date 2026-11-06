@@ -41,9 +41,11 @@ These are facts about the target machine and they shape the defaults:
           ┌───────────────▼───┐   ┌──────▼────────────────┐
           │ llm providers     │   │ tool registry         │
           │ (src/rolex/llm/)  │   │ (src/rolex/tools/)    │
-          │  • ollama (local) │   │  • open_app           │
-          │  • gemini (free)  │   │  • open_url           │
-          │  • base.Provider  │   │  • ... (later phases) │
+          │  • base.Protocol  │   │  • open_app           │
+          │  • ollama (local) │   │  • open_url           │
+          │  • gemini (free)  │   │  • ... (later phases) │
+          │  • transport      │   │                       │
+          │  • factory        │   │                       │
           └───────────────────┘   └───────────────────────┘
                           │              │
                    ┌──────▼──────────────▼─────┐
@@ -58,7 +60,9 @@ These are facts about the target machine and they shape the defaults:
   nothing else in the package. Every other module may depend on it.
 - `rolex.llm` — provider protocol plus one module per backend. Knows how to turn
   a message list + tool schemas into a reply. Knows nothing about *which* tools
-  exist or what they do.
+  exist or what they do. `transport` holds the JSON-over-HTTP plumbing, apart
+  from any one provider, so Gemini can reuse it and so a provider's parsing can
+  be tested against a fake rather than a patched private method.
 - `rolex.tools` — each tool is a pure-ish function plus a JSON schema. Knows
   nothing about the LLM.
 - `rolex.agent` — owns the loop. The only module that imports both `llm` and
@@ -80,13 +84,18 @@ class LLMProvider(Protocol):
 
 | Provider | Model | Cost | Role |
 | --- | --- | --- | --- |
-| `ollama` | `qwen2.5:3b-instruct` (Q4) | free, local | default |
+| `ollama` | `qwen2.5:3b` (Q4, 1.9 GB) | free, local | default |
 | `gemini` | `gemini-2.0-flash` | free tier, rate-limited | fallback when local is too weak or unavailable |
 
-Tool calling is the hard part for small local models. `qwen2.5:3b-instruct` is
-chosen over `llama3.2:3b` because its tool-calling is noticeably more reliable at
-that size. If accuracy proves unusable in testing, the provider switch is a
-config line, not a rewrite — which is the whole reason for the protocol.
+Tool calling is the hard part for small local models. `qwen2.5:3b` is chosen
+over `llama3.2:3b` because its tool-calling is noticeably more reliable at that
+size. If accuracy proves unusable in testing, the provider switch is a config
+line, not a rewrite — which is the whole reason for the protocol.
+
+Phase 1 testing found its English good, its understanding of romanised Marathi
+partial, and its Marathi output poor. The system prompt works around this by
+asking for English replies. This is the clearest argument so far for finishing
+the Gemini fallback.
 
 ## Safety model
 

@@ -20,3 +20,11 @@ class ProviderError(RolexError):
 
 class ToolError(RolexError):
     """A tool failed while running, or was called with bad arguments."""
+
+
+class UnreachableError(ProviderError):
+    """The backend's server could not be contacted at all.
+
+    Separate from :class:`ProviderError` because it is the one failure with an
+    obvious fix — start the server — and callers add that advice.
+    """

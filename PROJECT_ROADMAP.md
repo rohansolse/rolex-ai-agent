@@ -7,7 +7,7 @@ Status legend: `done` · `in review` · `todo`
 
 ---
 
-## Phase 0 — Scaffold and tooling · `in review`
+## Phase 0 — Scaffold and tooling · `done`
 
 Everything needed to write code with confidence, and nothing that runs an agent.
 
@@ -26,16 +26,27 @@ Everything needed to write code with confidence, and nothing that runs an agent.
 
 ---
 
-## Phase 1 — Config and LLM provider · `todo`
+## Phase 1 — Config and LLM provider · `in review`
 
 **Scope**
 - `rolex.core.config` — layered config (defaults → `rolex.toml` → env), typed
+- `rolex.core.logging` — one place that configures handlers
 - `rolex.llm.base` — `Message`, `ToolSchema`, `Reply`, `LLMProvider` protocol
-- `rolex.llm.ollama` — local provider, streaming, model pull check
-- Ollama bootstrap script that puts weights on `/Volumes/DEVHAN`, not the boot disk
-- `rolex chat` — a bare REPL that proves the model answers
+- `rolex.llm.transport` — JSON-over-HTTP plumbing, shared with Gemini later
+- `rolex.llm.ollama` — local provider, streaming, model availability check
+- `rolex.llm.factory` — config name → provider instance
+- `make ollama` — starts the server with weights on the external drive
+- `rolex chat` — a REPL that proves the model answers
+- `rolex doctor` — says what is configured and whether it is reachable
 
-**Done when** `rolex chat` holds a conversation with a local model, offline.
+**Done when** `rolex chat` holds a conversation with a local model, offline. ✅
+
+**Known limitation found in testing.** `qwen2.5:3b` answers well in English and
+understands simple romanised Marathi ("browser open kar"), but its Marathi
+*output* is poor and it misreads some Marathi words ("guniley"). The system
+prompt therefore asks it to understand any language and reply in English.
+Better Marathi needs a larger model than 8 GB comfortably holds, or the Gemini
+fallback in Phase 5.
 
 ---
 

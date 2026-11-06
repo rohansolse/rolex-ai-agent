@@ -7,7 +7,8 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 0.** Scaffold and tooling only. There is no agent yet.
+> **Status: Phase 1.** rolex talks, using a local model. It cannot *do*
+> anything yet — tools land in Phase 3, voice in Phase 4.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -16,7 +17,7 @@ local model is not enough.
 - macOS on Apple silicon
 - Python 3.12 (installed for you by `uv`)
 - [`uv`](https://docs.astral.sh/uv/) — `brew install uv`
-- Ollama, from Phase 1 onward — `brew install --cask ollama`
+- Ollama — `brew install ollama`
 
 ## Setup
 
@@ -25,6 +26,9 @@ git clone <this repo>
 cd rolex-ai-agent
 make install
 cp .env.example .env    # then edit it
+
+# Download the model. ~1.9 GB, onto the external drive, once.
+OLLAMA_MODELS=/Volumes/DEVHAN/ollama-models ollama pull qwen2.5:3b
 ```
 
 ## Checks
@@ -38,14 +42,38 @@ make check       # all three, the same set CI runs
 
 `make format` fixes what is fixable.
 
-## Try it
+## Talk to it
+
+The model runs in a server that has to be up. Leave it running in one terminal:
 
 ```bash
-make run
-uv run rolex --version
+make ollama
 ```
 
-In Phase 0 this only confirms the package is installed and wired up correctly.
+Then in another:
+
+```bash
+make doctor   # is everything in place?
+make chat     # talk
+```
+
+```
+you   > who are you?
+rolex > I am rolex.
+you   > exit
+```
+
+### What it can and cannot do yet
+
+It answers questions. It cannot open an app, search the web, or touch a file —
+there are no tools until Phase 3, and no voice until Phase 4.
+
+`qwen2.5:3b` is a small model, chosen because 8 GB of RAM will not hold a
+larger one. In testing it answered English well and understood simple
+romanised Marathi such as "browser open kar", but its Marathi replies were
+poor and it misread words like "guniley". It is therefore told to understand
+any language and answer in English. If that is not good enough, the options
+are a bigger model or the free-tier Gemini fallback in Phase 5.
 
 ## If the repo is on an external drive
 
@@ -62,14 +90,25 @@ anywhere else. Run `make install` first; a bare `uv sync` would build a real
 nearly full, so `.env.example` points `OLLAMA_MODELS` at `/Volumes/DEVHAN`.
 Keep it that way unless you have freed up room.
 
+## Configuration
+
+Settings come from three places, each beating the one before it: the defaults
+in `src/rolex/core/config.py`, then an optional `rolex.toml`, then the
+environment (including `.env`). Every key is listed in
+[.env.example](.env.example).
+
+```bash
+ROLEX_MODEL=llama3.2:3b make chat    # one run, different model
+```
+
 ## Layout
 
 ```
 src/rolex/
   core/       config, logging, errors — depends on nothing else
   llm/        LLM providers behind one protocol
-  tools/      things the agent can do
-  agent/      the think → act → observe loop
+  tools/      things the agent can do (empty until Phase 3)
+  agent/      the think → act → observe loop (empty until Phase 2)
   interface/  CLI today, voice from Phase 4
 tests/
 ```
