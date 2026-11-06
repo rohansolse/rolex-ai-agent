@@ -7,9 +7,9 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 4.** You can speak to it. Say "rolex, open chrome" and it
-> does, then answers out loud. Everything — the language model, the speech
-> recognition, the voice — runs on this Mac.
+> **Status: Phase 5.** You can speak to it, and it can act on the web page in
+> front of you — read it, scroll it, click things, type. Everything — the
+> language model, the speech recognition, the voice — runs on this Mac.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -90,6 +90,12 @@ know the time, so an answer with no `get_time` line above it would be invented.
 | `open_app` | Opens an application | **yes** |
 | `open_url` | Opens an http(s) page | **yes** |
 | `search_web` | Searches the web in the browser | **yes** |
+| `read_page` | Reads the page open in Chrome | no |
+| `page_buttons` | Lists what can be clicked | no |
+| `scroll_page` | Scrolls the page | no |
+| `click_text` | Clicks something by its text | **yes** |
+| `type_text` | Types into the focused box | **yes** |
+| `press_key` | Presses Enter, Escape, Tab… | **yes** |
 
 Anything that only looks runs straight away. Anything that makes a window
 appear asks first, and anything that could delete or send something is
@@ -178,6 +184,34 @@ anywhere else. Run `make install` first; a bare `uv sync` would build a real
 **Model weights have to live on the external drive.** The internal disk is
 nearly full, so `.env.example` points `OLLAMA_MODELS` at `/Volumes/DEVHAN`.
 Keep it that way unless you have freed up room.
+
+## Acting on a web page
+
+rolex can see the page open in Chrome and act on it:
+
+```
+you   > what is on the page?
+       · read_page()
+rolex > It is WhatsApp Web, with 3 unread chats.
+
+you   > open the MBRJ group
+       · allow click_text(text='MBRJ self group')? [y/N] y
+       · click_text(text='MBRJ self group')
+rolex > Opened MBRJ self group.
+```
+
+**Chrome needs to be told this is allowed, once:** View → Developer → **Allow
+JavaScript from Apple Events**. macOS will also ask the first time, under
+System Settings → Privacy & Security → Automation. rolex says so plainly if
+either is missing.
+
+Reading and scrolling happen without asking. Clicking and typing always ask —
+one wrong click sends a message to the wrong person.
+
+On a simple page this works well. On a busy one like WhatsApp Web there can
+be hundreds of clickable things, and a 3B model will sometimes pick the wrong
+one. Ask it to `page_buttons` first if you want to see what it is choosing
+between.
 
 ## Configuration
 

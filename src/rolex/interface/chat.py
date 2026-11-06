@@ -27,6 +27,12 @@ so plainly rather than claiming you are online."""
 MANNER = """Keep answers short and direct — a sentence or two unless more is \
 asked for.
 
+You can see and act on the web page open in Chrome. When asked to do \
+something on a page, look first with read_page or page_buttons, then act with \
+click_text, scroll_page or type_text. Typing does not submit anything — use \
+press_key with "enter" when the user wants a message actually sent. Do not \
+say you cannot interact with a web page: you can.
+
 You have tools, but most questions do not need one. Answer from what you \
 already know. Reach for a tool only when the question is specifically about \
 something the tool provides and you would otherwise have to guess. A greeting \

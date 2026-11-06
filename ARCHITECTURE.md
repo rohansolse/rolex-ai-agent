@@ -260,6 +260,48 @@ The asymmetry is deliberate. A false wake costs a few wasted seconds of
 listening; a missed wake means rolex ignored the user, which is the failure
 people actually resent.
 
+## Acting on web pages
+
+rolex reads and acts on the page in Chrome through `osascript`. Chrome
+accepts JavaScript over Apple Events, so there is no driver, no debugging
+port and no Python dependency — the same shape as every other tool here.
+
+Two permissions have to be granted once, and both produce an error that says
+so rather than a silent failure: macOS Automation for the terminal, and
+Chrome's own View → Developer → Allow JavaScript from Apple Events.
+
+| Tool | Safety | Why |
+| --- | --- | --- |
+| `read_page`, `page_buttons`, `scroll_page` | read_only | looking changes nothing |
+| `click_text`, `type_text`, `press_key` | mutating | one wrong click sends a message to the wrong person |
+
+Three details that are not obvious:
+
+- **Text is capped before it reaches the model.** A chat page runs to tens of
+  thousands of characters and a 3B model's context does not; an uncapped page
+  would push the system prompt out of the window.
+- **Typing is keystrokes, not a value assignment.** A chat box built in React
+  ignores a value it was handed and only reacts to real typing. Bringing
+  Chrome forward and typing must be one script: as two, the window could
+  still be coming forward when the keys arrived, and the first character
+  landed somewhere else.
+- **Exact labels win.** Taking the first substring match in DOM order means
+  "Ram" clicks "Rama Sharma". Clicking tries an exact label, then one
+  starting with the text, then one merely containing it.
+- **A non-zero box does not mean visible.** A closed menu keeps its size
+  while being `visibility: hidden` or fully transparent. Listing and
+  clicking share one visibility test, so rolex never offers something it
+  cannot click.
+- **A newline is a Return, and Return sends.** `type_text` refuses
+  multi-line text rather than posting half a message; sending is `press_key`,
+  done on purpose.
+- **`missing value` is not an answer.** AppleScript prints that for
+  JavaScript that returned undefined, and passed through it would read to the
+  model as though the page had said those words.
+
+The model had to be told in its prompt that it can do this. Holding all six
+tools, it was still answering "I can't directly interact with web pages".
+
 ## Naming tools for a small model
 
 A 3B model matches on a tool's *name* and barely reads its description. One

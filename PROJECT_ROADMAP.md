@@ -46,7 +46,7 @@ understands simple romanised Marathi ("browser open kar"), but its Marathi
 *output* is poor and it misreads some Marathi words ("guniley"). The system
 prompt therefore asks it to understand any language and reply in English.
 Better Marathi needs a larger model than 8 GB comfortably holds, or the Gemini
-fallback in Phase 5.
+fallback in Phase 6.
 
 ---
 
@@ -126,7 +126,7 @@ description.
 
 ---
 
-## Phase 4 — Voice in and out · `in review`
+## Phase 4 — Voice in and out · `done`
 
 **Scope**
 - `rolex.voice.record` — the microphone, via ffmpeg, stopping on silence
@@ -231,7 +231,64 @@ not needed.
 
 ---
 
-## Phase 5 — Gemini fallback and provider switching · `todo`
+## Phase 5 — Acting on web pages · `in review`
+
+Opening a page and stopping there is not an assistant. This is the phase that
+answers "what is the use of an agent that cannot click?".
+
+**Scope**
+- `rolex.tools.browser` — `read_page`, `page_buttons`, `click_text`,
+  `scroll_page`, `type_text`, `press_key`
+- Everything through `osascript`: Chrome takes JavaScript over Apple Events,
+  so no driver, no debugging port, and still no Python dependency
+- The system prompt tells the model it can see the page, because it was
+  flatly refusing — "I can't directly interact with web pages" — while
+  holding the tools to do it
+
+**Done when** rolex can be told what to do on a page and do it. ✅
+
+Verified on a test page in the real Chrome: `page_buttons` listed what was
+there, `click_text("MBRJ self group")` clicked it and the page changed,
+`type_text` put exactly the right text in the focused box, `scroll_page` and
+`press_key` worked. End to end through the agent: "click on MBRJ self group"
+asked permission, clicked, and the page's state changed.
+
+**Reading is free, acting is not.** `read_page`, `page_buttons` and
+`scroll_page` run unasked — looking changes nothing. `click_text`,
+`type_text` and `press_key` are `mutating` and asked about every time: one
+wrong click sends a message to the wrong person.
+
+**Typing had to become one script.** Bringing Chrome forward and typing were
+two separate `osascript` calls, and the window could still be coming forward
+when the keys arrived — the first character landed somewhere else. They are
+now one script with a pause between.
+
+**Review found six things worth having.** Clicking took the first substring
+match in DOM order, so "Ram" clicked "Rama Sharma" — a different person;
+exact labels now win over prefixes, and prefixes over substrings (verified in
+Chrome: "Ram" clicks Ram, "Rama" clicks Rama Sharma). Hidden elements were
+offered and clickable, since a closed menu keeps its size; visibility and
+opacity are now checked, by the same code used for listing so the two cannot
+disagree. `type_text` passed newlines straight to the keyboard, which in a
+chat box presses Return and sends half a message while reporting the whole
+thing typed — it now refuses and says to use `press_key`. `press_key` became
+`destructive`, since the key people ask for is Enter. `read_page` made three
+round-trips and could stitch a report from two different tabs; it is now one.
+And the prompt did not mention `press_key`, so the model typed messages and
+never sent them.
+
+**Known limitation: the active tab can change under us.** Every call targets
+whatever tab is in front at that moment, so `read_page` and a following
+`click_text` can land on different pages if the user switches tabs in
+between.
+
+**Known limitation: a 3B model finds this hard.** Reading a page and deciding
+where to click is a great deal harder than telling the time. It worked on a
+simple page; a real chat application has hundreds of elements and the model
+will sometimes pick the wrong one. This is the strongest case yet for a
+larger model.
+
+## Phase 6 — Gemini fallback and provider switching · `todo`
 
 **Scope**
 - `rolex.llm.gemini` — free-tier provider behind the same protocol
@@ -243,7 +300,7 @@ not needed.
 
 ---
 
-## Phase 6 — Memory and context · `todo`
+## Phase 7 — Memory and context · `todo`
 
 **Scope**
 - Conversation persistence across restarts
@@ -252,7 +309,7 @@ not needed.
 
 ---
 
-## Phase 7 — Hardening and release · `todo`
+## Phase 8 — Hardening and release · `todo`
 
 **Scope**
 - Error handling and recovery everywhere

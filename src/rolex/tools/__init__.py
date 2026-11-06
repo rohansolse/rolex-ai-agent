@@ -5,7 +5,7 @@ decorators run on import, and :func:`rolex.tools.registry.registered` then
 knows about them. Add a module here when you add one.
 """
 
-from rolex.tools import clock, mac, system  # noqa: F401 - imported to register
+from rolex.tools import browser, clock, mac, system  # noqa: F401 - imported to register
 from rolex.tools.base import Safety, Tool
 from rolex.tools.registry import get, registered, with_safety
 
