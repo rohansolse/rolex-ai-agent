@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local config
+.env
+rolex.local.toml
+
+# Model weights never belong in the repo
+models/
+*.gguf
+
+# macOS, including the resource forks this external volume creates
+.DS_Store
+._*
