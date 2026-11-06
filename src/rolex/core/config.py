@@ -79,7 +79,17 @@ class Config:
     as rolex being erratic. Creativity is not what is wanted here.
     """
 
-    log_level: str = "INFO"
+    allow_destructive: bool = False
+    """Whether rolex may run tools that delete, overwrite or send something.
+
+    Off by default. A model that has misunderstood should not be one
+    confirmation away from doing something irreversible.
+    """
+
+    log_level: str = "WARNING"
+    """Default quiet: INFO lines land in the middle of the conversation and
+    the terminal is the user's, not a log sink. ROLEX_LOG_LEVEL=DEBUG when
+    diagnosing."""
 
     def require_gemini_key(self) -> str:
         """Return the Gemini key, or explain what is missing."""
@@ -132,6 +142,23 @@ def _dotenv(path: Path) -> dict[str, str]:
     return found
 
 
+#: Spellings accepted for a boolean setting, so "1", "yes" and "true" all work.
+_TRUE = frozenset({"1", "true", "yes", "on"})
+_FALSE = frozenset({"0", "false", "no", "off", ""})
+
+
+def _as_bool(name: str, raw: object) -> bool:
+    """Read a boolean from a config file or an environment string."""
+    if isinstance(raw, bool):
+        return raw
+    text = str(raw).strip().lower()
+    if text in _TRUE:
+        return True
+    if text in _FALSE:
+        return False
+    raise ConfigError(f"{name} must be true or false, got {raw!r}")
+
+
 def _unquote(value: str) -> str:
     """Strip quotes, and an unquoted trailing ``# comment``, from a .env value."""
     value = value.strip()
@@ -170,6 +197,7 @@ _ENV_KEYS: dict[str, str] = {
     "log_level": f"{ENV_PREFIX}LOG_LEVEL",
     "request_timeout": f"{ENV_PREFIX}REQUEST_TIMEOUT",
     "temperature": f"{ENV_PREFIX}TEMPERATURE",
+    "allow_destructive": f"{ENV_PREFIX}ALLOW_DESTRUCTIVE",
     "ollama_host": "OLLAMA_HOST",
     "ollama_models_dir": "OLLAMA_MODELS",
     "gemini_api_key": "GEMINI_API_KEY",
@@ -208,6 +236,8 @@ def _build(values: dict[str, Any]) -> Config:
                 raise ConfigError(f"request_timeout must be a number, got {raw!r}") from exc
             if coerced[field.name] <= 0:
                 raise ConfigError(f"request_timeout must be positive, got {raw!r}")
+        elif field.name == "allow_destructive":
+            coerced[field.name] = _as_bool(field.name, raw)
         elif field.name == "temperature":
             try:
                 coerced[field.name] = float(raw)

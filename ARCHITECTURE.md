@@ -63,8 +63,11 @@ These are facts about the target machine and they shape the defaults:
   exist or what they do. `transport` holds the JSON-over-HTTP plumbing, apart
   from any one provider, so Gemini can reuse it and so a provider's parsing can
   be tested against a fake rather than a patched private method.
-- `rolex.tools` — each tool is a pure-ish function plus a JSON schema. Knows
-  nothing about the LLM.
+- `rolex.tools` — each tool is a function declared with `@register`; its JSON
+  Schema is derived from the signature, so the description the model sees and
+  the code that runs cannot drift apart. Knows nothing about the LLM. Importing
+  the package is what declares every tool, so a new module has to be added to
+  its `__init__`.
 - `rolex.agent` — owns the loop. The only module that imports both `llm` and
   `tools`, and the one that translates a `tools.Tool` into the `llm.ToolSchema`
   a provider wants. It yields the loop's steps as events rather than printing
@@ -122,13 +125,43 @@ never with a traceback caused by the model being bad at its job.
 
 ## Safety model
 
-Tools are classified when they are registered:
+Every tool declares a safety class when it is registered:
 
-- **read-only** — run without asking (read a file, list windows).
-- **mutating** — ask before running (open an app, write a file).
-- **destructive** — refuse unless the config explicitly allows it (delete, send).
+- **read_only** — looks at something and changes nothing. Runs unasked.
+- **mutating** — makes a visible change the user would not mind undoing.
+  Asks first.
+- **destructive** — deletes, overwrites or sends something outward. Refused
+  outright unless `allow_destructive` is set.
 
-The agent loop enforces this; a tool cannot bypass it.
+`rolex.agent.consent.Policy` decides, and `rolex.agent.loop` enforces it. A
+tool cannot bypass it, because a tool is never the thing that calls itself.
+
+Two details that matter more than they look:
+
+- **With no way to ask, anything needing consent is refused.** A piped or
+  scheduled run has nobody at the keyboard, and silence is not consent.
+- **A refusal is reported to the model as a tool result beginning "Not
+  done:".** Without that it answers as though the thing had happened. This was
+  observed: told only "the user said no", the model replied "it seems the
+  browser is already open".
+
+### What the model never gets to decide
+
+Tool arguments reach the shell as an argv list, never as a shell string, so a
+name like `Safari; rm -rf ~` stays a name. `open_url` accepts only `http` and
+`https`: macOS `open` will act on `file://` and on application schemes, and
+neither is something a model should be able to reach for.
+
+## Naming tools for a small model
+
+A 3B model matches on a tool's *name* and barely reads its description. One
+`system_info` tool reporting battery, disk and memory lost every battery
+question to `get_time`, in every phrasing and every ordering tried. Three
+tools named `battery_level`, `disk_space` and `machine_info` got all of them
+right.
+
+So: one tool per question a user would ask, named as the answer to it. Prefer
+three obvious tools to one clever one.
 
 ## Coding standards
 

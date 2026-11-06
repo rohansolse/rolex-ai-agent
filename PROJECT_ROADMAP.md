@@ -50,7 +50,7 @@ fallback in Phase 5.
 
 ---
 
-## Phase 2 — Agent loop · `in review`
+## Phase 2 — Agent loop · `done`
 
 **Scope**
 - `rolex.agent.loop` — think → call tool → observe → repeat, with a round cap
@@ -98,16 +98,31 @@ work is printed as it happens instead, which is better feedback anyway.
 
 ---
 
-## Phase 3 — Tool registry and real tools · `todo`
+## Phase 3 — Tool registry and real tools · `in review`
 
 **Scope**
-- `rolex.tools.registry` — decorator-based registration, schema generated from
-  the type hints, safety class per tool
-- Confirmation policy enforced in the loop
-- First real tools: `open_app`, `open_url`, `search_web`, `system_info`
-- This is the phase where "rolex, browser open kar" actually works, as text
+- `rolex.tools.registry` — a `Registry` class plus the shared `REGISTRY`;
+  tools are declared with `@register` and their JSON Schema is derived from
+  the function signature, so the two cannot drift
+- `rolex.agent.consent` — the policy deciding what may run, enforced by the
+  loop, not by the tools
+- Real tools: `open_app`, `open_url`, `search_web`, `battery_level`,
+  `disk_space`, `machine_info`
+- `rolex chat` asks before anything that changes the machine
 
-**Done when** typed commands drive the Mac through tools, with confirmations.
+**Done when** typed commands drive the Mac through tools, with confirmations. ✅
+
+**One combined `system_info` tool had to be split into three.** Asked "how
+much battery do I have?", the model called `get_time` instead — for all six
+phrasings tried, and whichever order the tools were listed in. Removing
+`get_time` fixed it, which showed the problem was the model matching on names
+rather than reading descriptions. Split into `battery_level`, `disk_space` and
+`machine_info`, it chose correctly every time. Measured over three runs of
+twelve prompts: 12/12 each time.
+
+**The lesson for Phase 4 and later: a tool's name has to be the answer to the
+user's question.** A small model matches on the name and barely reads the
+description.
 
 ---
 

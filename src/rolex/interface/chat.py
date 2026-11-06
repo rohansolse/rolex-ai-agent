@@ -5,18 +5,17 @@ loop so the model can use tools. Voice arrives in Phase 4.
 """
 
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Any
 
-from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolStarted
+from rolex.agent.consent import Policy
+from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, UnreachableError
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
+from rolex.tools import registered
 from rolex.tools.base import Tool
-from rolex.tools.clock import get_time
-
-DEFAULT_TOOLS: tuple[Tool, ...] = (get_time,)
-"""What rolex can do. One tool in Phase 2; the registry fills this in Phase 3."""
 
 IDENTITY = """Your name is rolex. You are an assistant running on the user's \
 Mac. When asked who you are, say you are rolex."""
@@ -79,7 +78,8 @@ def run_chat(
 
     agent = Agent(
         provider=backend,
-        tools=DEFAULT_TOOLS if tools is None else tools,
+        tools=registered() if tools is None else tools,
+        policy=Policy(ask=ask_at_terminal, allow_destructive=config.allow_destructive),
         history=[Message("system", system_prompt(config))],
     )
 
@@ -126,6 +126,21 @@ def _trim(history: list[Message]) -> list[Message]:
     return [system, *kept]
 
 
+def ask_at_terminal(tool: Tool, arguments: Mapping[str, Any]) -> bool:
+    """Ask the user to approve one tool call.
+
+    Anything other than an explicit yes is a no: a stray newline, an EOF, or a
+    Ctrl-C must never be read as permission.
+    """
+    shown = ", ".join(f"{key}={value!r}" for key, value in arguments.items())
+    question = f"{STEP}allow {tool.name}({shown})? [y/N] "
+    try:
+        return input(question).strip().lower() in {"y", "yes"}
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+
+
 def _show(events: Iterable[Event]) -> None:
     """Print each step of the agent's work, then its answer."""
     for event in events:
@@ -135,6 +150,8 @@ def _show(events: Iterable[Event]) -> None:
         elif isinstance(event, ToolFinished):
             mark = "failed: " if event.failed else ""
             print(f"{STEP}  {mark}{_short(event.result)}", flush=True)
+        elif isinstance(event, ToolRefused):
+            print(f"{STEP}  refused: {_short(event.reason)}", flush=True)
         elif isinstance(event, Answer):
             if event.gave_up:
                 print(f"{STEP}(gave up asking for tools)", flush=True)

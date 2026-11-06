@@ -15,6 +15,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from rolex.agent.consent import Policy
 from rolex.core.errors import ToolError
 from rolex.llm.base import LLMProvider, Message, ToolCall, ToolSchema
 from rolex.tools.base import Tool
@@ -58,6 +59,14 @@ class ToolFinished:
 
 
 @dataclass(frozen=True, slots=True)
+class ToolRefused:
+    """A tool was not run, because the policy said no."""
+
+    name: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
 class Answer:
     """The model's reply in words. Always the last event."""
 
@@ -66,7 +75,7 @@ class Answer:
     """True when the round limit was hit rather than the model finishing."""
 
 
-Event = ToolStarted | ToolFinished | Answer
+Event = ToolStarted | ToolFinished | ToolRefused | Answer
 
 
 # --- the loop -------------------------------------------------------------
@@ -78,6 +87,7 @@ class Agent:
 
     provider: LLMProvider
     tools: Sequence[Tool] = ()
+    policy: Policy = field(default_factory=Policy)
     max_rounds: int = MAX_ROUNDS
     history: list[Message] = field(default_factory=list)
 
@@ -104,16 +114,20 @@ class Agent:
         abandoned turn leaves nothing half-finished behind.
         """
         turn: list[Message] = [Message("user", question)]
-        # Prodding the model into saying something is scaffolding for this
-        # turn only. Committed to history it would read, ever after, as the
-        # user standing over it complaining about an empty reply.
+        # Prodding the model into saying something is scaffolding: it is sent
+        # with the next request and then dropped. Committed to history it
+        # would read, ever after, as the user complaining about an empty
+        # reply; left in place it would do the same for the rest of the turn,
+        # telling the model "no tool ran" right after one did.
         nudges: list[Message] = []
 
         for round_number in range(self.max_rounds):
             reply = self.provider.complete(self.history + turn + nudges, self.schemas)
 
+            answered = reply.wants_tool or bool(reply.content.strip())
+
             if not reply.wants_tool:
-                if reply.content.strip():
+                if answered:
                     self.history.extend([*turn, reply.as_message()])
                     yield Answer(reply.content)
                     return
@@ -126,6 +140,7 @@ class Agent:
                 nudges.append(Message("user", _EMPTY_REPLY_NUDGE))
                 continue
 
+            nudges.clear()
             turn.append(reply.as_message())
 
             log.debug(
@@ -156,6 +171,15 @@ class Agent:
             yield ToolFinished(call.name, message, failed=True)
             return
 
+        decision = self.policy.decide(tool, call.arguments)
+        if not decision.allowed:
+            # Told to the model as a tool result, so it explains itself to the
+            # user instead of silently doing nothing or trying again.
+            log.debug("refused %s: %s", tool.name, decision.reason)
+            turn.append(Message.tool_result(tool.name, decision.reason))
+            yield ToolRefused(tool.name, decision.reason)
+            return
+
         yield ToolStarted(tool.name, call.arguments)
 
         try:
@@ -165,7 +189,11 @@ class Agent:
             text = result if isinstance(result, str) else json.dumps(result)
         # Broad on purpose: a tool misbehaving must not take the agent down.
         except Exception as exc:
-            log.warning("tool %s failed: %s", tool.name, exc, exc_info=True)
+            # DEBUG, not WARNING: the failure is already reported to the user
+            # as a ToolFinished event and to the model as a tool result, so a
+            # log line would be the same thing said a third time, in the
+            # middle of the conversation.
+            log.debug("tool %s failed: %s", tool.name, exc, exc_info=True)
             text = f"The tool '{tool.name}' failed: {exc}"
             turn.append(Message.tool_result(tool.name, text))
             yield ToolFinished(tool.name, text, failed=True)

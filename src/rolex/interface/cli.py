@@ -12,6 +12,7 @@ from rolex.core.logging import configure_logging
 from rolex.interface.chat import explain_unavailable as run_chat_help
 from rolex.interface.chat import run_chat
 from rolex.llm.factory import build_provider
+from rolex.tools import registered
 
 USAGE = """usage: rolex <command>
 
@@ -24,8 +25,9 @@ commands:
   -V, --version   print the version and exit
   -h, --help      print this message and exit
 
-rolex can use tools, but has only one so far. More land in Phase 3, voice in
-Phase 4. See PROJECT_ROADMAP.md."""
+rolex uses tools to do things. `rolex doctor` lists them. Anything that
+changes the machine asks first. Voice arrives in Phase 4; see
+PROJECT_ROADMAP.md."""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -75,6 +77,8 @@ def _doctor(config: Config) -> int:
     print(f"model        {config.model}")
     print(f"ollama host  {config.ollama_host}")
     print(f"models dir   {config.ollama_models_dir}")
+    print(f"destructive  {'allowed' if config.allow_destructive else 'refused'}")
+    print(f"tools        {', '.join(tool.name for tool in registered()) or 'none'}")
 
     # A warning, not a failure: rolex never opens this directory itself, and a
     # default ~/.ollama setup works perfectly well without it.

@@ -6,7 +6,13 @@ import pytest
 
 from rolex.core.config import Config, ProviderName
 from rolex.core.errors import ProviderError, UnreachableError
-from rolex.interface.chat import HISTORY_TURNS, _trim, run_chat, system_prompt
+from rolex.interface.chat import (
+    HISTORY_TURNS,
+    _trim,
+    ask_at_terminal,
+    run_chat,
+    system_prompt,
+)
 from rolex.llm.base import Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
 
@@ -274,3 +280,61 @@ def test_a_hosted_prompt_does_not_claim_to_be_offline() -> None:
 @pytest.mark.parametrize("provider", ["local", "gemini"])
 def test_every_prompt_names_rolex(provider: ProviderName) -> None:
     assert "rolex" in system_prompt(Config(provider=provider))
+
+
+# --- asking the user at the terminal --------------------------------------
+
+
+@pytest.mark.parametrize("typed", ["y", "Y", "yes", " YES "])
+def test_an_explicit_yes_approves(monkeypatch: pytest.MonkeyPatch, typed: str) -> None:
+    monkeypatch.setattr("builtins.input", lambda _="": typed)
+    assert ask_at_terminal(Tool(name="t", description="d", run=lambda _: ""), {})
+
+
+@pytest.mark.parametrize("typed", ["", "n", "no", "maybe", "ye", "sure"])
+def test_anything_else_is_a_no(monkeypatch: pytest.MonkeyPatch, typed: str) -> None:
+    """A stray newline must never be read as permission."""
+    monkeypatch.setattr("builtins.input", lambda _="": typed)
+    assert not ask_at_terminal(Tool(name="t", description="d", run=lambda _: ""), {})
+
+
+@pytest.mark.parametrize("failure", [EOFError, KeyboardInterrupt])
+def test_an_interrupted_question_is_a_no(
+    monkeypatch: pytest.MonkeyPatch, failure: type[BaseException]
+) -> None:
+    def interrupt(_: str = "") -> str:
+        raise failure
+
+    monkeypatch.setattr("builtins.input", interrupt)
+    assert not ask_at_terminal(Tool(name="t", description="d", run=lambda _: ""), {})
+
+
+def test_the_question_names_the_tool_and_its_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asked: list[str] = []
+
+    def capture(question: str = "") -> str:
+        asked.append(question)
+        return "n"
+
+    monkeypatch.setattr("builtins.input", capture)
+    ask_at_terminal(Tool(name="open_app", description="d", run=lambda _: ""), {"name": "Safari"})
+
+    assert "open_app" in asked[0]
+    assert "Safari" in asked[0]
+
+
+def test_a_refusal_is_shown_to_the_user(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _typed(monkeypatch, "open safari")
+    wants_app = Reply(content="", tool_calls=(ToolCall("open_app", {"name": "Safari"}),))
+    provider = FakeProvider([wants_app, "I did not open it"])
+    app = Tool(name="open_app", description="d", run=lambda _: "opened", safety="mutating")
+
+    run_chat(Config(), provider=provider, tools=[app])
+
+    out = capsys.readouterr().out
+    assert "refused" in out
+    assert "I did not open it" in out

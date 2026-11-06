@@ -18,9 +18,9 @@ Safety = Literal["read_only", "mutating", "destructive"]
   not mind undoing. Opening an app.
 - ``destructive`` — deletes, overwrites, or sends something outward.
 
-Phase 2 ships only a ``read_only`` tool. The policy that acts on this arrives
-with the registry in Phase 3; the field exists now so no tool is ever written
-without its author having to think about the answer.
+:class:`rolex.agent.consent.Policy` acts on this, and
+:mod:`rolex.agent.loop` enforces it. A tool never enforces its own class,
+because a tool is not the thing that decides to call itself.
 """
 
 

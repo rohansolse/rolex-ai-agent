@@ -10,7 +10,15 @@ from typing import Any
 
 import pytest
 
-from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolStarted
+from rolex.agent.consent import Policy
+from rolex.agent.loop import (
+    Agent,
+    Answer,
+    Event,
+    ToolFinished,
+    ToolRefused,
+    ToolStarted,
+)
 from rolex.core.errors import ProviderError, ToolError
 from rolex.llm.base import Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
@@ -358,3 +366,94 @@ def test_giving_up_with_nothing_to_say_still_says_something() -> None:
     assert answer_of(events).gave_up
     assert answer_of(events).content.strip()
     assert agent.history[-1].content.strip()
+
+
+# --- the consent policy in the loop ---------------------------------------
+
+
+def test_a_refused_tool_does_not_run() -> None:
+    ran = False
+
+    def record(_: Mapping[str, Any]) -> str:
+        nonlocal ran
+        ran = True
+        return "did it"
+
+    provider = ScriptedProvider([calls("risky"), says("I did not do that")])
+    risky = Tool(name="risky", description="d", run=record, safety="mutating")
+    agent = Agent(provider, tools=[risky], policy=Policy(ask=lambda *_: False))
+
+    events = collect(agent.ask("do it"))
+
+    assert not ran
+    assert isinstance(events[0], ToolRefused)
+    assert answer_of(events).content == "I did not do that"
+
+
+def test_a_refusal_is_explained_to_the_model() -> None:
+    """Otherwise it reports success for something that never happened."""
+    provider = ScriptedProvider([calls("risky"), says("ok")])
+    risky = Tool(name="risky", description="d", run=lambda _: "", safety="mutating")
+    agent = Agent(provider, tools=[risky], policy=Policy(ask=lambda *_: False))
+
+    collect(agent.ask("do it"))
+
+    told = provider.seen[1][-1]
+    assert told.role == "tool"
+    assert told.content.startswith("Not done:")
+
+
+def test_an_approved_tool_runs() -> None:
+    provider = ScriptedProvider([calls("risky"), says("done")])
+    risky = Tool(name="risky", description="d", run=lambda _: "did it", safety="mutating")
+    agent = Agent(provider, tools=[risky], policy=Policy(ask=lambda *_: True))
+
+    events = collect(agent.ask("do it"))
+
+    assert any(isinstance(e, ToolFinished) and e.result == "did it" for e in events)
+
+
+def test_a_read_only_tool_is_never_put_to_the_user() -> None:
+    asked = False
+
+    def ask(*_: Any) -> bool:
+        nonlocal asked
+        asked = True
+        return True
+
+    provider = ScriptedProvider([calls("echo"), says("done")])
+    agent = Agent(provider, tools=[tool()], policy=Policy(ask=ask))
+
+    collect(agent.ask("go"))
+
+    assert not asked
+
+
+def test_the_default_policy_refuses_mutating_tools_with_no_one_to_ask() -> None:
+    """Agent() with no policy is what a scripted or piped run gets."""
+    provider = ScriptedProvider([calls("risky"), says("could not")])
+    risky = Tool(name="risky", description="d", run=lambda _: "", safety="mutating")
+
+    events = collect(Agent(provider, tools=[risky]).ask("go"))
+
+    assert isinstance(events[0], ToolRefused)
+
+
+def test_the_nudge_stops_being_sent_once_the_model_speaks() -> None:
+    """Left in place it tells the model "no tool ran" right after one did."""
+    provider = ScriptedProvider([says(""), calls("echo"), says("done")])
+    agent = Agent(provider, tools=[tool()])
+
+    collect(agent.ask("go"))
+
+    assert any("empty" in m.content for m in provider.seen[1])
+    assert not any("empty" in m.content for m in provider.seen[2])
+
+
+def test_the_nudge_is_not_sent_on_the_final_attempt() -> None:
+    provider = ScriptedProvider([says(""), calls("echo"), says("done")])
+    agent = Agent(provider, tools=[tool()], max_rounds=2)
+
+    collect(agent.ask("go"))
+
+    assert not any("empty" in m.content for m in provider.seen[-1])

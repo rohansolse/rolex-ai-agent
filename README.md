@@ -7,9 +7,9 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 2.** rolex can use tools, so it does things rather than only
-> talking — but it has exactly one tool so far. Real tools land in Phase 3,
-> voice in Phase 4.
+> **Status: Phase 3.** rolex does things: opens apps, opens pages, searches the
+> web, reports on the Mac. It asks before anything that changes the machine.
+> Voice arrives in Phase 4.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -59,13 +59,16 @@ make chat     # talk
 ```
 
 ```
-you   > who are you?
-rolex > I am rolex.
-
 you   > what time is it?
        · get_time()
        ·   Friday 6 November 2026, 4:30 PM
 rolex > It is Friday, 6 November 2026, at 4:30 PM.
+
+you   > open safari
+       · allow open_app(name='Safari')? [y/N] y
+       · open_app(name='Safari')
+       ·   Opened Safari.
+rolex > Safari is open.
 
 you   > exit
 ```
@@ -73,11 +76,24 @@ you   > exit
 The `·` lines are rolex doing something rather than guessing. A model cannot
 know the time, so an answer with no `get_time` line above it would be invented.
 
-### What it can and cannot do yet
+### Tools
 
-It answers questions, and it can tell the time by actually looking. It cannot
-open an app, search the web, or touch a file — those tools arrive in Phase 3,
-and voice in Phase 4.
+| Tool | What it does | Asks first? |
+| --- | --- | --- |
+| `get_time` | The date and time | no |
+| `battery_level` | Battery charge | no |
+| `disk_space` | Free disk space | no |
+| `machine_info` | Memory, processor, macOS version | no |
+| `open_app` | Opens an application | **yes** |
+| `open_url` | Opens an http(s) page | **yes** |
+| `search_web` | Searches the web in the browser | **yes** |
+
+Anything that only looks runs straight away. Anything that makes a window
+appear asks first, and anything that could delete or send something is
+refused outright unless `ROLEX_ALLOW_DESTRUCTIVE=true` — there are no such
+tools yet, but the rule is in place before there are.
+
+Voice arrives in Phase 4.
 
 `qwen2.5:3b` is a small model, chosen because 8 GB of RAM will not hold a
 larger one. **Ask it in English.** In testing it handled English reliably —
@@ -111,8 +127,9 @@ environment (including `.env`). Every key is listed in
 [.env.example](.env.example).
 
 ```bash
-ROLEX_MODEL=llama3.2:3b make chat     # one run, different model
-ROLEX_TEMPERATURE=0.8 make chat       # chattier, but worse at choosing tools
+ROLEX_MODEL=llama3.2:3b make chat       # one run, different model
+ROLEX_TEMPERATURE=0.8 make chat         # chattier, but worse at choosing tools
+ROLEX_LOG_LEVEL=DEBUG make chat         # show what the loop is doing
 ```
 
 ## Layout
@@ -121,7 +138,7 @@ ROLEX_TEMPERATURE=0.8 make chat       # chattier, but worse at choosing tools
 src/rolex/
   core/       config, logging, errors — depends on nothing else
   llm/        LLM providers behind one protocol
-  tools/      things the agent can do — one so far
+  tools/      things the agent can do, and the registry that declares them
   agent/      the think → act → observe loop
   interface/  CLI today, voice from Phase 4
 tests/
