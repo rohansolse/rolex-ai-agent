@@ -403,6 +403,90 @@ _LOCATE_NTH = (
 )
 
 
+@register(description="List the tabs open in Chrome, numbered.")
+def list_tabs() -> str:
+    """Every tab in the front Chrome window, with the open one marked."""
+    _require_chrome()
+    # AppleScript has no inline conditional, so the marker is built with a
+    # statement rather than an expression.
+    listing = _osascript(
+        "set out to {}\n"
+        f'tell application "{BROWSER}" to tell front window\n'
+        "  set open_one to active tab index\n"
+        "  repeat with i from 1 to count tabs\n"
+        '    set mark to ""\n'
+        '    if i = open_one then set mark to "[open] "\n'
+        '    set end of out to (i as text) & ". " & mark & (title of tab i)\n'
+        "  end repeat\n"
+        "end tell\n"
+        # Set outside the Chrome block: `text item delimiters` belongs to
+        # AppleScript itself, and Chrome rejects being asked for it.
+        "set AppleScript's text item delimiters to linefeed\n"
+        "return out as text"
+    )
+    if not listing:
+        return "No tabs are open."
+    return f"Tabs in Chrome (close_tab and switch_tab take the number):\n{listing}"
+
+
+@register(
+    description="Close a Chrome tab by its number from list_tabs.",
+    safety="mutating",
+)
+def close_tab(number: int) -> str:
+    """Close one tab.
+
+    Args:
+        number: Its number in the list_tabs listing.
+    """
+    wanted, title = _tab(number)
+    _osascript(f'tell application "{BROWSER}" to close tab {wanted} of front window')
+    return f"Closed the tab showing {title!r}."
+
+
+@register(
+    description="Switch to a Chrome tab by its number from list_tabs.",
+    safety="mutating",
+)
+def switch_tab(number: int) -> str:
+    """Bring one tab to the front.
+
+    Args:
+        number: Its number in the list_tabs listing.
+    """
+    wanted, title = _tab(number)
+    _osascript(f'tell application "{BROWSER}" to set active tab index of front window to {wanted}')
+    return f"Switched to {title!r}."
+
+
+def _tab(number: int) -> tuple[int, str]:
+    """Check a tab number and return it with that tab's title.
+
+    Checked rather than trusted: a number from an earlier listing can point
+    at a different tab once one has been closed, and closing the wrong tab
+    loses whatever was in it.
+    """
+    try:
+        wanted = int(number)
+    except (TypeError, ValueError) as exc:
+        raise ToolError(f"number must be a whole number, got {number!r}") from exc
+    if wanted < 1:
+        raise ToolError(f"tabs are numbered from 1, got {wanted}")
+
+    _require_chrome()
+    count = _osascript(f'tell application "{BROWSER}" to count tabs of front window')
+    try:
+        total = int(count)
+    except ValueError as exc:
+        raise ToolError(f"{BROWSER} has no window open") from exc
+
+    if wanted > total:
+        raise ToolError(f"there is no tab {wanted}; Chrome has {total}. Use list_tabs to see them.")
+
+    title = _osascript(f'tell application "{BROWSER}" to title of tab {wanted} of front window')
+    return wanted, title
+
+
 @register(description="Scroll the page in Chrome up or down.")
 def scroll_page(direction: str = "down", screens: float = 1.0) -> str:
     """Scroll by whole screenfuls.

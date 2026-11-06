@@ -477,3 +477,76 @@ def test_scrolling_into_view_is_instant(chrome: FakeRun) -> None:
     chrome.answers = ["true", "", spot()]
     browser.click_text("anything")
     assert "behavior: 'instant'" in chrome.javascript[-1]
+
+
+# --- tabs -----------------------------------------------------------------
+
+
+def test_tabs_are_listed_with_numbers_and_the_open_one_marked(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "1. Colab\n2. [open] WhatsApp"]
+    listed = browser.list_tabs()
+    assert "close_tab" in listed
+    assert "[open] WhatsApp" in listed
+
+
+def test_no_tabs_says_so(chrome: FakeRun) -> None:
+    chrome.answers = ["true", ""]
+    assert browser.list_tabs() == "No tabs are open."
+
+
+def test_closing_a_tab_names_what_was_closed(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "3", "Example Domain", ""]
+    assert browser.close_tab(3) == "Closed the tab showing 'Example Domain'."
+    assert any("close tab 3" in script for script in chrome.scripts)
+
+
+def test_switching_tab_names_where_it_went(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "3", "Colab", ""]
+    assert browser.switch_tab(1) == "Switched to 'Colab'."
+    assert any("active tab index of front window to 1" in s for s in chrome.scripts)
+
+
+def test_a_tab_number_past_the_end_is_refused(chrome: FakeRun) -> None:
+    """A number from an earlier listing points elsewhere once a tab has been
+    closed, and closing the wrong tab loses what was in it."""
+    chrome.answers = ["true", "2"]
+    with pytest.raises(ToolError, match="Chrome has 2"):
+        browser.close_tab(99)
+    assert not any("close tab" in script for script in chrome.scripts)
+
+
+@pytest.mark.parametrize("number", [0, -1])
+def test_a_tab_number_below_one_is_refused(chrome: FakeRun, number: int) -> None:
+    with pytest.raises(ToolError, match="numbered from 1"):
+        browser.close_tab(number)
+
+
+def test_something_that_is_not_a_tab_number_is_refused(chrome: FakeRun) -> None:
+    with pytest.raises(ToolError, match="whole number"):
+        browser.close_tab("two")
+
+
+def test_no_window_open_is_reported(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "not a number"]
+    with pytest.raises(ToolError, match="no window open"):
+        browser.close_tab(1)
+
+
+def test_listing_tabs_never_asks_permission() -> None:
+    assert get("list_tabs").safety == "read_only"
+
+
+def test_closing_and_switching_tabs_ask_permission() -> None:
+    assert get("close_tab").safety == "mutating"
+    assert get("switch_tab").safety == "mutating"
+
+
+def test_the_prompt_separates_a_tab_from_an_application() -> None:
+    """Asked to close a tab, rolex reached for close_app and reported that
+    "WhatsApp Web is not running"."""
+    from rolex.core.config import Config
+    from rolex.interface.chat import system_prompt
+
+    prompt = system_prompt(Config())
+    assert "close_tab" in prompt
+    assert "close_app" in prompt

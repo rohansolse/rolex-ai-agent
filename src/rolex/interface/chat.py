@@ -36,6 +36,9 @@ already on screen, and do not say you cannot interact with a web page.
 Use open_url only for an address the user gave you, or one you are certain \
 of. Guessing a URL takes the user away from the page they were on.
 
+A browser tab is not an application. "close the WhatsApp tab" means \
+list_tabs then close_tab; close_app quits the whole of Chrome.
+
 Typing does not submit anything: use press_key with "enter" when the user \
 wants a message actually sent.
 
