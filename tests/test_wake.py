@@ -103,9 +103,31 @@ def test_speech_that_was_not_addressed_to_rolex_is_ignored(said: str) -> None:
     assert not heard(said)
 
 
-def test_the_wake_word_must_come_first() -> None:
+@pytest.mark.parametrize(
+    ("said", "command"),
+    [
+        ("hello rolex what is the time today", "what is the time today"),
+        ("hey rolex open chrome", "open chrome"),
+        ("okay rolex open notes", "open notes"),
+        ("Hello Rolex, what is the time?", "what is the time?"),
+    ],
+)
+def test_a_greeting_before_the_wake_word_is_allowed(said: str, command: str) -> None:
+    """People say "hello rolex" at least as often as "rolex"."""
+    assert strip(said) == command
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "I bought a Rolex watch",
+        "my friend has a rolex",
+        "so I told him rolex is great",
+    ],
+)
+def test_the_wake_word_must_still_come_near_the_start(said: str) -> None:
     """Otherwise it is a keyword, not a wake word."""
-    assert strip("hey rolex open chrome") is None
+    assert strip(said) is None
 
 
 def test_a_two_word_mishearing_does_not_eat_only_half() -> None:

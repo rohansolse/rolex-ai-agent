@@ -81,13 +81,28 @@ class Listener:
 
 
 @dataclass(frozen=True, slots=True)
+class Recording:
+    """A captured clip, and how it came to an end."""
+
+    path: Path
+
+    ended_on_silence: bool
+    """True when the speaker stopped, False when the clock ran out.
+
+    The difference matters: a clip that ran out of time probably cut the user
+    off mid-sentence, and the rest of what they said is about to arrive in
+    the next one.
+    """
+
+
+@dataclass(frozen=True, slots=True)
 class Recorder:
     """Captures one utterance at a time."""
 
     config: Config
 
-    def record(self, *, seconds: float | None = None) -> Path:
-        """Record until the speaker stops, or the time limit, and return the wav.
+    def record(self, *, seconds: float | None = None) -> Recording:
+        """Record until the speaker stops, or the time limit.
 
         The caller owns the file and should delete it.
 
@@ -105,14 +120,14 @@ class Recorder:
         destination = Path(path)
 
         try:
-            self._capture(ffmpeg, destination, limit)
+            ended_on_silence = self._capture(ffmpeg, destination, limit)
         except BaseException:
             # BaseException, not Exception: Ctrl-C is the documented way to
             # quit and usually lands mid-recording. A wav of someone's room
             # must not survive it.
             destination.unlink(missing_ok=True)
             raise
-        return destination
+        return Recording(path=destination, ended_on_silence=ended_on_silence)
 
     def argv(self, ffmpeg: str, destination: Path, limit: float) -> list[str]:
         """The ffmpeg command used to record. Separate so it can be tested."""
@@ -140,7 +155,8 @@ class Recorder:
             str(destination),
         ]
 
-    def _capture(self, ffmpeg: str, destination: Path, limit: float) -> None:
+    def _capture(self, ffmpeg: str, destination: Path, limit: float) -> bool:
+        """Run ffmpeg. Returns whether the speaker stopped before the clock did."""
         argv = self.argv(ffmpeg, destination, limit)
         process = subprocess.Popen(
             argv,
@@ -149,7 +165,7 @@ class Recorder:
             stderr=subprocess.PIPE,
             text=True,
         )
-        errors = self._watch(process, limit)
+        ended_on_silence, errors = self._watch(process, limit)
 
         if process.returncode not in {0, 255}:
             # 255 is what ffmpeg returns when asked to quit early, which is
@@ -159,16 +175,24 @@ class Recorder:
         if not destination.exists() or destination.stat().st_size == 0:
             raise AudioError("nothing was recorded")
 
-    def _watch(self, process: subprocess.Popen[str], limit: float) -> str:
-        """Follow ffmpeg's output, stopping it once the speaker stops."""
+        return ended_on_silence
+
+    def _watch(self, process: subprocess.Popen[str], limit: float) -> tuple[bool, str]:
+        """Follow ffmpeg's output, stopping it once the speaker stops.
+
+        Returns whether it was the speaker stopping that ended the clip, and
+        everything ffmpeg said.
+        """
         listener = Listener()
         lines: list[str] = []
+        ended_on_silence = False
 
         try:
             if process.stderr is not None:
                 for line in process.stderr:
                     lines.append(line)
                     if listener.should_stop(line):
+                        ended_on_silence = True
                         break
             _finish(process, timeout=limit + GRACE)
         except subprocess.TimeoutExpired as exc:
@@ -180,7 +204,7 @@ class Recorder:
             if process.poll() is None:
                 _kill(process)
 
-        return "".join(lines).strip()
+        return ended_on_silence, "".join(lines).strip()
 
 
 def _finish(process: subprocess.Popen[str], *, timeout: float) -> None:

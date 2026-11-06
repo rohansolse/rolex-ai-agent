@@ -69,28 +69,40 @@ def resembles(word: str) -> bool:
     return skeleton(word) == WAKE_SKELETON
 
 
+LEAD_WORDS = 3
+"""How far into a sentence the wake word may appear and still count.
+
+People say "hello rolex", "hey rolex" and "okay rolex" at least as often as
+they say "rolex" on its own, and requiring the very first word meant ignoring
+all of them. Three words in is far enough for those and short enough that "I
+bought a Rolex watch" — four words in — is still not an instruction.
+"""
+
+
 def strip(text: str) -> str | None:
-    """`text` with the wake word removed, or None if it was not there.
+    """`text` with everything up to the wake word removed, or None if it was
+    not there.
 
-    Only the beginning counts: "rolex, open chrome" wakes it while "I bought a
-    Rolex" does not, which is the difference between a wake word and a
-    keyword.
+    The wake word must come near the start: "hello rolex, open chrome" wakes
+    it while "I bought a Rolex watch" does not, which is the difference
+    between a wake word and a keyword.
 
-    Returns an empty string when the wake word was all that was said. The user
-    has rolex's attention and has not asked for anything yet, which is not the
+    Returns an empty string when nothing followed the wake word. The user has
+    rolex's attention and has not asked for anything yet, which is not the
     same as never having called it.
     """
     words = _WORDS.findall(text.casefold())
     if not words:
         return None
 
-    for phrase in sorted(PHRASES, key=lambda p: -len(p.split())):
-        parts = phrase.split()
-        if words[: len(parts)] == parts:
-            return _rest(text, len(parts))
+    for start in range(min(LEAD_WORDS, len(words))):
+        for phrase in sorted(PHRASES, key=lambda p: -len(p.split())):
+            parts = phrase.split()
+            if words[start : start + len(parts)] == parts:
+                return _rest(text, start + len(parts))
 
-    if resembles(words[0]):
-        return _rest(text, 1)
+        if resembles(words[start]):
+            return _rest(text, start + 1)
 
     return None
 

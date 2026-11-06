@@ -111,12 +111,12 @@ def ffmpeg(monkeypatch: pytest.MonkeyPatch) -> FakePopen:
 
 
 def test_a_recording_is_written_and_returned(ffmpeg: FakePopen) -> None:
-    path = Recorder(Config()).record()
+    recording = Recorder(Config()).record()
     try:
-        assert path.exists()
-        assert path.suffix == ".wav"
+        assert recording.path.exists()
+        assert recording.path.suffix == ".wav"
     finally:
-        path.unlink(missing_ok=True)
+        recording.path.unlink(missing_ok=True)
 
 
 def test_the_command_records_mono_at_the_rate_whisper_wants() -> None:
@@ -205,18 +205,18 @@ def test_ffmpeg_is_asked_to_stop_once_the_sentence_ends(ffmpeg: FakePopen) -> No
     of this module claimed to do and did not."""
     ffmpeg.lines = [PROGRESS, SPEECH_THEN_SILENCE]
 
-    path = Recorder(Config()).record()
+    recording = Recorder(Config()).record()
     try:
         assert ffmpeg.stopped
+        assert recording.ended_on_silence
     finally:
-        path.unlink(missing_ok=True)
+        recording.path.unlink(missing_ok=True)
 
 
 def test_a_clean_exit_from_an_early_stop_is_not_an_error(ffmpeg: FakePopen) -> None:
     """ffmpeg returns 255 when told to quit, which is a finished sentence."""
     ffmpeg.returncode = 255
-    path = Recorder(Config()).record()
-    path.unlink(missing_ok=True)
+    Recorder(Config()).record().path.unlink(missing_ok=True)
 
 
 # --- when recording fails -------------------------------------------------

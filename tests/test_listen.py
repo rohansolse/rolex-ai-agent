@@ -14,7 +14,7 @@ from rolex.core.errors import ProviderError
 from rolex.interface.listen import Ears, SpokenConsent, _question, run_listen
 from rolex.llm.base import Message, Reply, ToolSchema
 from rolex.tools.base import Tool
-from rolex.voice.record import AudioError
+from rolex.voice.record import AudioError, Recording
 
 
 class FakeEars:
@@ -253,8 +253,8 @@ def test_a_recording_is_deleted_even_if_transcribing_fails(tmp_path: Any) -> Non
     recording.write_text("audio")
 
     class Recorder:
-        def record(self, *, seconds: float | None = None) -> Any:
-            return recording
+        def record(self, *, seconds: float | None = None) -> Recording:
+            return Recording(path=recording, ended_on_silence=True)
 
     class Transcriber:
         def transcribe(self, path: Any) -> str:
@@ -455,11 +455,11 @@ def test_the_next_clip_starts_before_the_last_is_transcribed(tmp_path: Any) -> N
         def __init__(self) -> None:
             self.made = 0
 
-        def record(self, *, seconds: float | None = None) -> Any:
+        def record(self, *, seconds: float | None = None) -> Recording:
             self.made += 1
             clip = tmp_path / f"clip{self.made}.wav"
             clip.write_text("audio")
-            return clip
+            return Recording(path=clip, ended_on_silence=True)
 
     recorder = CountingRecorder()
     ears = Ears(recorder, Transcriber())  # type: ignore[arg-type]
@@ -479,8 +479,8 @@ def test_a_transcribed_clip_is_deleted(tmp_path: Any) -> None:
     clip.write_text("audio")
 
     class Recorder:
-        def record(self, *, seconds: float | None = None) -> Any:
-            return clip
+        def record(self, *, seconds: float | None = None) -> Recording:
+            return Recording(path=clip, ended_on_silence=True)
 
     class Transcriber:
         def transcribe(self, path: Any) -> str:
@@ -495,11 +495,11 @@ def test_a_discarded_clip_is_deleted(tmp_path: Any) -> None:
     made: list[Any] = []
 
     class Recorder:
-        def record(self, *, seconds: float | None = None) -> Any:
+        def record(self, *, seconds: float | None = None) -> Recording:
             clip = tmp_path / f"clip{len(made)}.wav"
             clip.write_text("audio")
             made.append(clip)
-            return clip
+            return Recording(path=clip, ended_on_silence=True)
 
     class Transcriber:
         def transcribe(self, path: Any) -> str:
@@ -557,13 +557,13 @@ def test_a_failed_recording_does_not_poison_every_later_one(tmp_path: Any) -> No
     attempts: list[int] = []
 
     class FlakyRecorder:
-        def record(self, *, seconds: float | None = None) -> Any:
+        def record(self, *, seconds: float | None = None) -> Recording:
             attempts.append(1)
             if len(attempts) == 1:
                 raise AudioError("microphone busy")
             clip = tmp_path / f"clip{len(attempts)}.wav"
             clip.write_text("audio")
-            return clip
+            return Recording(path=clip, ended_on_silence=True)
 
     class Transcriber:
         def transcribe(self, path: Any) -> str:
@@ -587,7 +587,7 @@ def test_listening_drops_a_clip_already_in_flight(tmp_path: Any) -> None:
         def __init__(self) -> None:
             self.made = 0
 
-        def record(self, *, seconds: float | None = None) -> Any:
+        def record(self, *, seconds: float | None = None) -> Recording:
             if live:
                 raise AssertionError("two recordings at once")
             live.append("recording")
@@ -595,7 +595,7 @@ def test_listening_drops_a_clip_already_in_flight(tmp_path: Any) -> None:
                 self.made += 1
                 clip = tmp_path / f"clip{self.made}.wav"
                 clip.write_text("audio")
-                return clip
+                return Recording(path=clip, ended_on_silence=True)
             finally:
                 live.pop()
 

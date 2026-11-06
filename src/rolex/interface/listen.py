@@ -16,7 +16,6 @@ import sys
 from collections.abc import Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from rolex.agent.consent import Policy
@@ -34,7 +33,7 @@ from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
 from rolex.tools import registered
 from rolex.tools.base import Tool
-from rolex.voice.record import Recorder
+from rolex.voice.record import Recorder, Recording
 from rolex.voice.speak import Speaker
 from rolex.voice.transcribe import Transcriber
 from rolex.voice.wake import WAKE_WORD, strip
@@ -76,7 +75,7 @@ class Ears:
     recorder: Recorder
     transcriber: Transcriber
 
-    pending: "Future[Path] | None" = None
+    pending: "Future[Recording] | None" = None
     """A clip already being recorded while the last one is transcribed."""
 
     def listen(self, *, seconds: float | None = None) -> str:
@@ -126,21 +125,21 @@ class Ears:
             return
         # A failed recording leaves nothing to delete, which is fine here.
         with contextlib.suppress(Exception):
-            pending.result(timeout=RECORD_GRACE).unlink(missing_ok=True)
+            pending.result(timeout=RECORD_GRACE).path.unlink(missing_ok=True)
 
-    def _start(self, seconds: float) -> "Future[Path]":
+    def _start(self, seconds: float) -> "Future[Recording]":
         return _POOL.submit(self.recorder.record, seconds=seconds)
 
-    def _read(self, recording: Path) -> str:
+    def _read(self, recording: Recording) -> str:
         """Transcribe a recording and delete it.
 
         Deleted whatever happens: a recording of someone's room is not
         something to leave lying in /tmp.
         """
         try:
-            return self.transcriber.transcribe(recording)
+            return self.transcriber.transcribe(recording.path)
         finally:
-            Path(recording).unlink(missing_ok=True)
+            recording.path.unlink(missing_ok=True)
 
 
 @dataclass(slots=True)
