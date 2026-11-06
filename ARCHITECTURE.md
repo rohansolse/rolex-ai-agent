@@ -29,9 +29,11 @@ These are facts about the target machine and they shape the defaults:
 
 ```
                    ┌───────────────────────────┐
-   voice / text →  │  interface layer          │  CLI, later push-to-talk
+   voice / text →  │  interface layer          │  chat, listen, talk
                    │  (src/rolex/interface/)   │
                    └─────────────┬─────────────┘
+                                 │  uses rolex.voice for the microphone,
+                                 │  whisper and the spoken reply
                                  │  user utterance (str)
                    ┌─────────────▼─────────────┐
                    │  agent loop               │  think → call tool → observe
@@ -73,7 +75,10 @@ These are facts about the target machine and they shape the defaults:
   a provider wants. It yields the loop's steps as events rather than printing
   them, so the CLI and, later, the voice interface can show the same work
   differently.
-- `rolex.interface` — entrypoints (CLI now, voice later). Owns I/O and nothing else.
+- `rolex.interface` — entrypoints. Owns I/O and nothing else.
+- `rolex.voice` — the microphone, speech to text, text to speech, and the wake
+  word. Devices rather than interface: each can fail on its own and is tested
+  on its own. Depends on `core` only, so nothing about the agent leaks into it.
 
 Dependencies point downward only. `tools` must never import `llm`, and `llm`
 must never import `tools`. If a change needs that edge, the logic belongs in
@@ -151,6 +156,54 @@ Tool arguments reach the shell as an argv list, never as a shell string, so a
 name like `Safari; rm -rf ~` stays a name. `open_url` accepts only `http` and
 `https`: macOS `open` will act on `file://` and on application schemes, and
 neither is something a model should be able to reach for.
+
+## Voice
+
+Three subprocesses, no Python audio or ML dependencies:
+
+| Job | Tool | Why |
+| --- | --- | --- |
+| Record | `ffmpeg` (avfoundation) | already installed; a PortAudio binding would be the project's first compiled dependency |
+| Speech to text | `whisper-cli` (whisper.cpp) | `faster-whisper` would pull in ctranslate2 — hundreds of MB onto a disk with 13 GB free |
+| Speak | `say` | ships with macOS; no model, no download |
+
+Recording stops on silence rather than after a fixed time, so a three-word
+command does not make the user wait out the limit. `silencedetect` only
+reports silence, it does not act on it, so ffmpeg's output is read as it
+arrives and ffmpeg is sent `q` on stdin at the first silence that follows
+speech — `q` rather than a signal, so it writes the wav header it has been
+holding back and the file is playable.
+
+Two things about that are easy to get wrong, and were:
+
+- The log level must be `info`. At `error` the detector's output never appears
+  and nothing can stop early, silently.
+- A clip that begins with speech emits `silence_start` and **no**
+  `silence_end`. A rule that waits for an end never fires.
+
+Neither showed up in unit tests written from imagination; both appeared
+immediately when run against real ffmpeg. Those tests now use ffmpeg's actual
+output, copied from a run.
+
+Each clip is deleted as soon as it is transcribed — including when Ctrl-C
+lands mid-recording — because a recording of someone's room is not something
+to leave in `/tmp`.
+
+### Hearing the wake word
+
+Whisper transcribed the same spoken "rolex" as "Rolex", "Rulics" and "relax",
+so the wake word cannot be matched literally. String similarity does not
+separate the cases either — "rulics" scores 0.36 against "rolex" while "rules"
+scores 0.60.
+
+What works is comparing **consonant skeletons**: drop the vowels, normalise
+`x`→`ks` and `c`→`k`, collapse doubled letters. Every observed mishearing
+reduces to `rlks`; "rules", "release", "rolling", "robot", "ready" and the
+rest do not.
+
+The asymmetry is deliberate. A false wake costs a few wasted seconds of
+listening; a missed wake means rolex ignored the user, which is the failure
+people actually resent.
 
 ## Naming tools for a small model
 

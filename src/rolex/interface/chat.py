@@ -109,10 +109,10 @@ def run_chat(
             print("\n[interrupted]\n")
             continue
 
-        agent.history = _trim(agent.history)
+        agent.history = trim(agent.history)
 
 
-def _trim(history: list[Message]) -> list[Message]:
+def trim(history: list[Message]) -> list[Message]:
     """Keep the system prompt and the most recent turns, drop the middle.
 
     Trimming stops partway if it would start the kept history with a tool
@@ -149,17 +149,21 @@ def _show(events: Iterable[Event]) -> None:
             print(f"{STEP}{event.name}({shown})", flush=True)
         elif isinstance(event, ToolFinished):
             mark = "failed: " if event.failed else ""
-            print(f"{STEP}  {mark}{_short(event.result)}", flush=True)
+            print(f"{STEP}  {mark}{short(event.result)}", flush=True)
         elif isinstance(event, ToolRefused):
-            print(f"{STEP}  refused: {_short(event.reason)}", flush=True)
+            print(f"{STEP}  refused: {short(event.reason)}", flush=True)
         elif isinstance(event, Answer):
             if event.gave_up:
                 print(f"{STEP}(gave up asking for tools)", flush=True)
             print(f"{ANSWER}{event.content}\n", flush=True)
 
 
-def _short(text: str, limit: int = 120) -> str:
-    """One line, trimmed, so a chatty tool does not flood the terminal."""
+def short(text: str, limit: int = 120) -> str:
+    """One line, trimmed, so a chatty tool does not flood the terminal.
+
+    Collapses newlines too: `machine_info` returns two lines, and only the
+    first would otherwise be seen.
+    """
     flat = " ".join(text.split())
     return flat if len(flat) <= limit else f"{flat[: limit - 1]}…"
 

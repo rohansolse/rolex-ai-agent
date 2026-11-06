@@ -8,10 +8,10 @@ from rolex.core.config import Config, ProviderName
 from rolex.core.errors import ProviderError, UnreachableError
 from rolex.interface.chat import (
     HISTORY_TURNS,
-    _trim,
     ask_at_terminal,
     run_chat,
     system_prompt,
+    trim,
 )
 from rolex.llm.base import Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
@@ -149,7 +149,7 @@ def test_unavailable_provider_explains_and_fails(
     assert "not ready" in capsys.readouterr().err
 
 
-def test_history_is_trimmed_but_keeps_the_system_prompt(
+def test_history_istrimmed_but_keeps_the_system_prompt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Ollama truncates from the front, which would drop rolex's own name."""
@@ -239,7 +239,7 @@ def test_tool_work_is_shown_to_the_user(
     assert "It is 4pm" in out
 
 
-def test_a_long_tool_result_is_shortened_on_screen(
+def test_a_long_tool_result_isshortened_on_screen(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _typed(monkeypatch, "go")
@@ -253,7 +253,7 @@ def test_a_long_tool_result_is_shortened_on_screen(
     assert "x" * 200 not in out
 
 
-def test_trimming_never_starts_the_history_with_a_tool_result() -> None:
+def testtrimming_never_starts_the_history_with_a_tool_result() -> None:
     """A tool result whose request was trimmed away confuses the model."""
     history = [
         Message("system", "s"),
@@ -262,7 +262,7 @@ def test_trimming_never_starts_the_history_with_a_tool_result() -> None:
         Message("assistant", "a"),
     ]
 
-    trimmed = _trim(history)
+    trimmed = trim(history)
 
     assert trimmed[0].role == "system"
     assert trimmed[1].role != "tool"

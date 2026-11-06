@@ -98,7 +98,7 @@ work is printed as it happens instead, which is better feedback anyway.
 
 ---
 
-## Phase 3 — Tool registry and real tools · `in review`
+## Phase 3 — Tool registry and real tools · `done`
 
 **Scope**
 - `rolex.tools.registry` — a `Registry` class plus the shared `REGISTRY`;
@@ -126,18 +126,53 @@ description.
 
 ---
 
-## Phase 4 — Voice in and out · `todo`
+## Phase 4 — Voice in and out · `in review`
 
 **Scope**
-- Wake word "rolex" (local, always-on, cheap)
-- Speech to text, local (`faster-whisper`, small model — fits the RAM budget)
-- Text to speech, starting with the macOS `say` voice
-- Push-to-talk fallback for when the wake word misfires
+- `rolex.voice.record` — the microphone, via ffmpeg, stopping on silence
+- `rolex.voice.transcribe` — speech to text, via whisper.cpp
+- `rolex.voice.speak` — answers read aloud, via the macOS `say` voice
+- `rolex.voice.wake` — recognising "rolex" in what was heard
+- `rolex listen` — wake word mode; `rolex talk` — push to talk
+- `rolex doctor` reports on every piece voice needs
 
-**Done when** the spoken command works end to end, no keyboard.
+**Done when** the spoken command works end to end, no keyboard. ✅ for the
+chain; the microphone itself is for the user to confirm (see below).
 
-**Risk** 8 GB RAM holding a 3B LLM *and* a Whisper model at once. May need to
-load them one at a time.
+**whisper.cpp was chosen over `faster-whisper`, and ffmpeg over a PortAudio
+binding.** Both are already installed, both are called as subprocesses, and
+the project still has zero Python runtime dependencies. `faster-whisper` would
+have pulled in ctranslate2 and friends — hundreds of megabytes onto a disk
+with 13 GB free.
+
+**The wake word needed measuring, not guessing.** Whisper transcribed the same
+spoken "rolex" as "Rolex", "Rulics" and "relax". A fixed list of spellings was
+written first and failed on the second recording. String similarity failed in
+both directions at once: "rulics" scored 0.36 against "rolex" while "rules"
+scored 0.60, so no threshold separated them. Comparing *consonant skeletons*
+did: all twelve observed mishearings reduce to `rlks`, and none of eighteen
+ordinary sentence-opening words do.
+
+**Stopping when the speaker stops took two attempts, and unit tests did not
+catch the first.** ffmpeg's `silencedetect` only *reports* silence; it never
+ends the recording. The first version passed its tests and did nothing, twice
+over: the log level was `error`, so the detector's output never appeared at
+all, and the stop rule waited for a `silence_end` before acting — but a clip
+that begins with talking produces a `silence_start` and no `silence_end` ever.
+Both were found by running it against real ffmpeg with a prepared file, not by
+the suite. The tests are now written against ffmpeg's actual output, and the
+fix is measured: a 14-second clip with 1.5 seconds of speech in it stopped
+after 2.6 seconds instead of running the full 15.
+
+**Not verified: the microphone itself.** Recording would have captured the
+user's room, so it was left for them to run. Everything downstream was tested
+on synthesised speech: `say` → wav → whisper → wake word → tool → spoken
+answer, which worked for all three commands tried.
+
+**Timing, measured.** Whisper takes 0.3–6.5 s for a short clip and the model
+1–8 s, so an answer lands a few seconds after the question. Both models fit in
+8 GB together in practice, so the one-at-a-time loading the roadmap feared was
+not needed.
 
 ---
 

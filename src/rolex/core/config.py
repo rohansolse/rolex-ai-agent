@@ -79,6 +79,34 @@ class Config:
     as rolex being erratic. Creativity is not what is wanted here.
     """
 
+    # --- voice (Phase 4) ---
+
+    whisper_model: Path = Path("/Volumes/DEVHAN/whisper-models/ggml-base.en.bin")
+    """Speech-to-text weights.
+
+    On the external drive for the same reason as the LLM: the internal disk
+    has no room. ``base.en`` is chosen over ``small`` because this machine has
+    8 GB and already holds a 2 GB language model.
+    """
+
+    audio_device: str = ""
+    """Which microphone, as ffmpeg's avfoundation index. Empty means the
+    system default. ``ffmpeg -f avfoundation -list_devices true -i ""`` lists
+    them."""
+
+    listen_seconds: float = 8.0
+    """How long to record after the wake word before giving up on a sentence."""
+
+    silence_seconds: float = 1.2
+    """How much quiet ends a sentence."""
+
+    speak: bool = True
+    """Whether rolex answers out loud as well as on screen."""
+
+    voice: str = ""
+    """A macOS voice name, as ``say -v '?'`` lists them. Empty is the system
+    default."""
+
     allow_destructive: bool = False
     """Whether rolex may run tools that delete, overwrite or send something.
 
@@ -147,6 +175,17 @@ _TRUE = frozenset({"1", "true", "yes", "on"})
 _FALSE = frozenset({"0", "false", "no", "off", ""})
 
 
+def _as_positive_float(name: str, raw: object) -> float:
+    """Read a duration or timeout, which is never zero or negative."""
+    try:
+        value = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise ConfigError(f"{name} must be a number, got {raw!r}") from exc
+    if value <= 0:
+        raise ConfigError(f"{name} must be positive, got {raw!r}")
+    return value
+
+
 def _as_bool(name: str, raw: object) -> bool:
     """Read a boolean from a config file or an environment string."""
     if isinstance(raw, bool):
@@ -198,6 +237,12 @@ _ENV_KEYS: dict[str, str] = {
     "request_timeout": f"{ENV_PREFIX}REQUEST_TIMEOUT",
     "temperature": f"{ENV_PREFIX}TEMPERATURE",
     "allow_destructive": f"{ENV_PREFIX}ALLOW_DESTRUCTIVE",
+    "whisper_model": f"{ENV_PREFIX}WHISPER_MODEL",
+    "audio_device": f"{ENV_PREFIX}AUDIO_DEVICE",
+    "listen_seconds": f"{ENV_PREFIX}LISTEN_SECONDS",
+    "silence_seconds": f"{ENV_PREFIX}SILENCE_SECONDS",
+    "speak": f"{ENV_PREFIX}SPEAK",
+    "voice": f"{ENV_PREFIX}VOICE",
     "ollama_host": "OLLAMA_HOST",
     "ollama_models_dir": "OLLAMA_MODELS",
     "gemini_api_key": "GEMINI_API_KEY",
@@ -230,14 +275,13 @@ def _build(values: dict[str, Any]) -> Config:
         elif field.name == "ollama_models_dir":
             coerced[field.name] = Path(raw).expanduser()
         elif field.name == "request_timeout":
-            try:
-                coerced[field.name] = float(raw)
-            except (TypeError, ValueError) as exc:
-                raise ConfigError(f"request_timeout must be a number, got {raw!r}") from exc
-            if coerced[field.name] <= 0:
-                raise ConfigError(f"request_timeout must be positive, got {raw!r}")
-        elif field.name == "allow_destructive":
+            coerced[field.name] = _as_positive_float(field.name, raw)
+        elif field.name in {"allow_destructive", "speak"}:
             coerced[field.name] = _as_bool(field.name, raw)
+        elif field.name == "whisper_model":
+            coerced[field.name] = Path(raw).expanduser()
+        elif field.name in {"listen_seconds", "silence_seconds"}:
+            coerced[field.name] = _as_positive_float(field.name, raw)
         elif field.name == "temperature":
             try:
                 coerced[field.name] = float(raw)

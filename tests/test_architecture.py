@@ -13,9 +13,10 @@ import pytest
 SRC = Path(__file__).resolve().parents[1] / "src" / "rolex"
 
 FORBIDDEN: dict[str, set[str]] = {
-    "tools": {"rolex.llm", "rolex.agent", "rolex.interface"},
-    "llm": {"rolex.tools", "rolex.agent", "rolex.interface"},
-    "core": {"rolex.llm", "rolex.tools", "rolex.agent", "rolex.interface"},
+    "tools": {"rolex.llm", "rolex.agent", "rolex.interface", "rolex.voice"},
+    "llm": {"rolex.tools", "rolex.agent", "rolex.interface", "rolex.voice"},
+    "core": {"rolex.llm", "rolex.tools", "rolex.agent", "rolex.interface", "rolex.voice"},
+    "voice": {"rolex.llm", "rolex.tools", "rolex.agent", "rolex.interface"},
 }
 
 

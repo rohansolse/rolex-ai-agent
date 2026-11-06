@@ -7,9 +7,9 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 3.** rolex does things: opens apps, opens pages, searches the
-> web, reports on the Mac. It asks before anything that changes the machine.
-> Voice arrives in Phase 4.
+> **Status: Phase 4.** You can speak to it. Say "rolex, open chrome" and it
+> does, then answers out loud. Everything — the language model, the speech
+> recognition, the voice — runs on this Mac.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -19,6 +19,7 @@ local model is not enough.
 - Python 3.12 (installed for you by `uv`)
 - [`uv`](https://docs.astral.sh/uv/) — `brew install uv`
 - Ollama — `brew install ollama`
+- For voice: `brew install whisper-cpp ffmpeg`
 
 ## Setup
 
@@ -28,8 +29,9 @@ cd rolex-ai-agent
 make install
 cp .env.example .env    # then edit it
 
-# Download the model. ~1.9 GB, onto the external drive, once.
-OLLAMA_MODELS=/Volumes/DEVHAN/ollama-models ollama pull qwen2.5:3b
+# Download the models, onto the external drive, once.
+OLLAMA_MODELS=/Volumes/DEVHAN/ollama-models ollama pull qwen2.5:3b   # 1.9 GB
+make whisper-model                                                   # 141 MB
 ```
 
 ## Checks
@@ -55,7 +57,8 @@ Then in another:
 
 ```bash
 make doctor   # is everything in place?
-make chat     # talk
+make chat     # type
+make listen   # speak
 ```
 
 ```
@@ -93,7 +96,48 @@ appear asks first, and anything that could delete or send something is
 refused outright unless `ROLEX_ALLOW_DESTRUCTIVE=true` — there are no such
 tools yet, but the rule is in place before there are.
 
-Voice arrives in Phase 4.
+## Speaking to it
+
+```bash
+make listen
+```
+
+Say "rolex", then what you want. It answers out loud.
+
+```
+you say: "rolex, how much battery do I have"
+heard  > how much battery do I have
+       · battery_level()
+       ·   Battery: 58% (discharging)
+rolex  > You have 58% battery left.          ← also spoken
+```
+
+If the room is noisy or it keeps mishearing the wake word:
+
+```bash
+make talk     # press Enter, then speak
+```
+
+### The first time
+
+macOS will ask whether your terminal may use the microphone — say yes. If it
+was refused once, turn it on in **System Settings → Privacy & Security →
+Microphone**. Without it, every recording fails with an I/O error, and rolex
+says so.
+
+### What to expect
+
+- An answer lands a few seconds after you stop speaking: whisper takes under a
+  second to several, and the model one to eight.
+- `base.en` is the smallest useful speech model, chosen because this Mac has
+  8 GB and is already holding a 2 GB language model. It mishears names.
+- **English only.** The speech model is the English build, and the language
+  model does not handle Marathi reliably either.
+- Nothing is recorded to disk beyond the moment: each clip is deleted as soon
+  as it has been transcribed, and nothing is sent anywhere.
+
+Turn the voice off with `ROLEX_SPEAK=false`, or pick another with
+`ROLEX_VOICE=Daniel` (`say -v '?'` lists them).
 
 `qwen2.5:3b` is a small model, chosen because 8 GB of RAM will not hold a
 larger one. **Ask it in English.** In testing it handled English reliably —
@@ -140,7 +184,8 @@ src/rolex/
   llm/        LLM providers behind one protocol
   tools/      things the agent can do, and the registry that declares them
   agent/      the think → act → observe loop
-  interface/  CLI today, voice from Phase 4
+  voice/      microphone, speech to text, text to speech, wake word
+  interface/  chat, listen
 tests/
 ```
 

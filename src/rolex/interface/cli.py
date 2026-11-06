@@ -3,7 +3,9 @@
 Voice arrives in Phase 4; until then everything is typed.
 """
 
+import shutil
 import sys
+from pathlib import Path
 
 from rolex import __version__
 from rolex.core.config import Config, load_config
@@ -11,6 +13,7 @@ from rolex.core.errors import RolexError
 from rolex.core.logging import configure_logging
 from rolex.interface.chat import explain_unavailable as run_chat_help
 from rolex.interface.chat import run_chat
+from rolex.interface.listen import run_listen
 from rolex.llm.factory import build_provider
 from rolex.tools import registered
 
@@ -19,15 +22,16 @@ USAGE = """usage: rolex <command>
 rolex is a voice-driven assistant that runs on a local LLM.
 
 commands:
-  chat            talk to rolex
+  chat            type to rolex
+  listen          speak to rolex; say "rolex" to wake it
+  talk            speak to rolex, pressing Enter each time instead
   doctor          check that everything rolex needs is in place
 
   -V, --version   print the version and exit
   -h, --help      print this message and exit
 
 rolex uses tools to do things. `rolex doctor` lists them. Anything that
-changes the machine asks first. Voice arrives in Phase 4; see
-PROJECT_ROADMAP.md."""
+changes the machine asks first. See PROJECT_ROADMAP.md."""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
         print(USAGE)
         return 0
 
-    if command in {"chat", "doctor"} and not rest:
+    if command in {"chat", "listen", "talk", "doctor"} and not rest:
         return _run(command)
 
     print(f"rolex: unrecognised arguments: {' '.join(args)}", file=sys.stderr)
@@ -63,6 +67,8 @@ def _run(command: str) -> int:
         configure_logging(config.log_level)
         if command == "chat":
             return run_chat(config)
+        if command in {"listen", "talk"}:
+            return run_listen(config, push_to_talk=command == "talk")
         return _doctor(config)
     except RolexError as exc:
         print(f"rolex: {exc}", file=sys.stderr)
@@ -85,6 +91,11 @@ def _doctor(config: Config) -> int:
     if not config.ollama_models_dir.is_dir():
         print("             not there — fine unless you meant to use the external drive")
 
+    print()
+    for label, detail in _voice_report(config):
+        print(f"{label:12} {detail}")
+    print()
+
     ready = provider.is_available()
     print(f"reachable    {'yes' if ready else 'no'}")
     if ready:
@@ -94,6 +105,40 @@ def _doctor(config: Config) -> int:
     print(file=sys.stderr)
     run_chat_help(config, provider)
     return 1
+
+
+def _voice_report(config: Config) -> list[tuple[str, str]]:
+    """What voice needs, and whether it is there."""
+    model = config.whisper_model
+    return [
+        ("ffmpeg", _found("ffmpeg", "brew install ffmpeg")),
+        ("whisper", _found("whisper-cli", "brew install whisper-cpp")),
+        ("say", _found("say", "not available on this system")),
+        ("speech model", _model_state(model)),
+        ("speaking", "on" if config.speak else "off (ROLEX_SPEAK=true to enable)"),
+    ]
+
+
+MIN_MODEL_BYTES = 10_000_000
+"""Smallest the real weights could be. Below this it is a failed download,
+which is worse than a missing file: everything reports it as present and
+whisper fails on it later with something unhelpful."""
+
+
+def _model_state(model: Path) -> str:
+    """Whether the speech model is there, and whether it looks whole."""
+    if not model.is_file():
+        return f"MISSING at {model} — run: make whisper-model"
+
+    size = model.stat().st_size
+    if size < MIN_MODEL_BYTES:
+        return f"TRUNCATED at {model} ({size} bytes) — delete it, then: make whisper-model"
+    return f"{model} ({size / 1_000_000:.0f} MB)"
+
+
+def _found(executable: str, remedy: str) -> str:
+    path = shutil.which(executable)
+    return path if path else f"MISSING — {remedy}"
 
 
 if __name__ == "__main__":
