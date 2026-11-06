@@ -7,8 +7,9 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 1.** rolex talks, using a local model. It cannot *do*
-> anything yet — tools land in Phase 3, voice in Phase 4.
+> **Status: Phase 2.** rolex can use tools, so it does things rather than only
+> talking — but it has exactly one tool so far. Real tools land in Phase 3,
+> voice in Phase 4.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -60,13 +61,23 @@ make chat     # talk
 ```
 you   > who are you?
 rolex > I am rolex.
+
+you   > what time is it?
+       · get_time()
+       ·   Friday 6 November 2026, 4:30 PM
+rolex > It is Friday, 6 November 2026, at 4:30 PM.
+
 you   > exit
 ```
 
+The `·` lines are rolex doing something rather than guessing. A model cannot
+know the time, so an answer with no `get_time` line above it would be invented.
+
 ### What it can and cannot do yet
 
-It answers questions. It cannot open an app, search the web, or touch a file —
-there are no tools until Phase 3, and no voice until Phase 4.
+It answers questions, and it can tell the time by actually looking. It cannot
+open an app, search the web, or touch a file — those tools arrive in Phase 3,
+and voice in Phase 4.
 
 `qwen2.5:3b` is a small model, chosen because 8 GB of RAM will not hold a
 larger one. In testing it answered English well and understood simple
@@ -107,8 +118,8 @@ ROLEX_MODEL=llama3.2:3b make chat    # one run, different model
 src/rolex/
   core/       config, logging, errors — depends on nothing else
   llm/        LLM providers behind one protocol
-  tools/      things the agent can do (empty until Phase 3)
-  agent/      the think → act → observe loop (empty until Phase 2)
+  tools/      things the agent can do — one so far
+  agent/      the think → act → observe loop
   interface/  CLI today, voice from Phase 4
 tests/
 ```

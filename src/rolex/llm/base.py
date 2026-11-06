@@ -13,36 +13,60 @@ Role = Literal["system", "user", "assistant", "tool"]
 
 
 @dataclass(frozen=True, slots=True)
+class ToolCall:
+    """A model's request to run a tool."""
+
+    name: str
+    arguments: dict[str, Any]
+
+    def as_dict(self) -> dict[str, Any]:
+        """The shape to send back when replaying this turn to the model."""
+        return {"function": {"name": self.name, "arguments": self.arguments}}
+
+
+@dataclass(frozen=True, slots=True)
 class Message:
-    """One turn in a conversation."""
+    """One turn in a conversation.
+
+    A tool round needs three kinds of turn, not one: the model asking to run
+    something (``assistant`` carrying ``tool_calls``), the result coming back
+    (``tool`` carrying ``name``), and ordinary text. All three must be
+    replayable, because the next request resends the whole conversation.
+    """
 
     role: Role
     content: str
+    tool_calls: tuple["ToolCall", ...] = ()
+    name: str | None = None
+    """Which tool produced this. Only meaningful on a ``tool`` message."""
 
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self) -> dict[str, Any]:
         """The shape most chat APIs expect."""
-        return {"role": self.role, "content": self.content}
+        payload: dict[str, Any] = {"role": self.role, "content": self.content}
+        if self.tool_calls:
+            payload["tool_calls"] = [call.as_dict() for call in self.tool_calls]
+        if self.name is not None:
+            payload["tool_name"] = self.name
+        return payload
+
+    @classmethod
+    def tool_result(cls, name: str, content: str) -> "Message":
+        """What a tool returned, addressed back to the model."""
+        return cls(role="tool", content=content, name=name)
 
 
 @dataclass(frozen=True, slots=True)
 class ToolSchema:
     """A tool the model may call, described so the model can decide to.
 
-    Phase 1 never sends these — no tools exist yet — but the type is defined
-    here so providers are written against the final signature from the start.
+    The provider-facing twin of :class:`rolex.tools.base.Tool`. Two types
+    rather than one because ``tools`` must not depend on ``llm``; the agent
+    translates between them.
     """
 
     name: str
     description: str
     parameters: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True, slots=True)
-class ToolCall:
-    """A model's request to run a tool."""
-
-    name: str
-    arguments: dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +81,10 @@ class Reply:
     def wants_tool(self) -> bool:
         """Whether the model asked to run something rather than just answer."""
         return bool(self.tool_calls)
+
+    def as_message(self) -> Message:
+        """This reply as a conversation turn, to send back with the next request."""
+        return Message(role="assistant", content=self.content, tool_calls=self.tool_calls)
 
 
 @runtime_checkable

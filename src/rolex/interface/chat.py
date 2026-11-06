@@ -1,22 +1,31 @@
 """The ``rolex chat`` REPL.
 
-A plain typed conversation with the configured model. No tools, no voice —
-those are Phases 3 and 4. This exists to prove the model is reachable and
-answering.
+A typed conversation with the configured model, running through the agent
+loop so the model can use tools. Voice arrives in Phase 4.
 """
 
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 
+from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolStarted
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, UnreachableError
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
+from rolex.tools.base import Tool
+from rolex.tools.clock import get_time
+
+DEFAULT_TOOLS: tuple[Tool, ...] = (get_time,)
+"""What rolex can do. One tool in Phase 2; the registry fills this in Phase 3."""
 
 SYSTEM_PROMPT = """Your name is rolex. You are an assistant running locally on \
 the user's Mac. When asked who you are, say you are rolex.
 
 Keep answers short and direct — a sentence or two unless more is asked for.
+
+You have tools. Use one when the answer depends on something only this \
+computer knows, such as the current time. Never guess at such a thing. Once a \
+tool has given you its result, answer the user in words — do not call it again.
 
 The user writes in Marathi, Hindi, English, or a mix, and often types Marathi \
 and Hindi in Latin letters ("tu kon ahes", "browser open kar", "kaise ho"). \
@@ -32,9 +41,16 @@ HISTORY_TURNS = 20
 
 PROMPT = "you   > "
 ANSWER = "rolex > "
+STEP = "       · "
+"""Prefix for the work rolex does on the way to an answer."""
 
 
-def run_chat(config: Config, *, provider: LLMProvider | None = None) -> int:
+def run_chat(
+    config: Config,
+    *,
+    provider: LLMProvider | None = None,
+    tools: Sequence[Tool] | None = None,
+) -> int:
     """Run the REPL until the user leaves. Returns the process exit code."""
     backend = build_provider(config) if provider is None else provider
 
@@ -42,9 +58,14 @@ def run_chat(config: Config, *, provider: LLMProvider | None = None) -> int:
         explain_unavailable(config, backend)
         return 1
 
-    print(f"rolex chat — {backend.name}. Type 'exit' to leave.\n")
+    agent = Agent(
+        provider=backend,
+        tools=DEFAULT_TOOLS if tools is None else tools,
+        history=[Message("system", SYSTEM_PROMPT)],
+    )
 
-    history = [Message("system", SYSTEM_PROMPT)]
+    names = ", ".join(tool.name for tool in agent.tools) or "none"
+    print(f"rolex chat — {backend.name}. Tools: {names}. Type 'exit' to leave.\n")
 
     while True:
         try:
@@ -58,41 +79,53 @@ def run_chat(config: Config, *, provider: LLMProvider | None = None) -> int:
         if line.lower() in QUIT_WORDS:
             return 0
 
-        history.append(Message("user", line))
-
         try:
-            answer = _say(backend.stream(history))
+            _show(agent.ask(line))
         except ProviderError as exc:
-            # The conversation survives one bad turn; drop the unanswered
-            # question so the next request is not sent with a dangling user
-            # message the model never replied to.
-            history.pop()
+            # One bad turn must not end the session. Agent.ask only commits a
+            # turn to history once it finishes, so there is nothing to undo.
             print(f"\n[{exc}]\n", file=sys.stderr)
             continue
         except KeyboardInterrupt:
-            history.pop()
             print("\n[interrupted]\n")
             continue
 
-        history.append(Message("assistant", answer))
-        history = _trim(history)
+        agent.history = _trim(agent.history)
 
 
 def _trim(history: list[Message]) -> list[Message]:
-    """Keep the system prompt and the most recent turns, drop the middle."""
+    """Keep the system prompt and the most recent turns, drop the middle.
+
+    Trimming stops partway if it would start the kept history with a tool
+    result: a ``tool`` message whose matching request has been dropped
+    confuses the model more than the extra length costs.
+    """
     system, rest = history[0], history[1:]
-    return [system, *rest[-HISTORY_TURNS:]]
+    kept = rest[-HISTORY_TURNS:]
+    while kept and kept[0].role == "tool":
+        kept = kept[1:]
+    return [system, *kept]
 
 
-def _say(chunks: Iterable[str]) -> str:
-    """Print chunks as they arrive and return the whole answer."""
-    print(ANSWER, end="", flush=True)
-    parts: list[str] = []
-    for chunk in chunks:
-        parts.append(chunk)
-        print(chunk, end="", flush=True)
-    print("\n")
-    return "".join(parts)
+def _show(events: Iterable[Event]) -> None:
+    """Print each step of the agent's work, then its answer."""
+    for event in events:
+        if isinstance(event, ToolStarted):
+            shown = ", ".join(f"{k}={v!r}" for k, v in event.arguments.items())
+            print(f"{STEP}{event.name}({shown})", flush=True)
+        elif isinstance(event, ToolFinished):
+            mark = "failed: " if event.failed else ""
+            print(f"{STEP}  {mark}{_short(event.result)}", flush=True)
+        elif isinstance(event, Answer):
+            if event.gave_up:
+                print(f"{STEP}(gave up asking for tools)", flush=True)
+            print(f"{ANSWER}{event.content}\n", flush=True)
+
+
+def _short(text: str, limit: int = 120) -> str:
+    """One line, trimmed, so a chatty tool does not flood the terminal."""
+    flat = " ".join(text.split())
+    return flat if len(flat) <= limit else f"{flat[: limit - 1]}…"
 
 
 def explain_unavailable(config: Config, backend: LLMProvider) -> None:

@@ -26,7 +26,7 @@ Everything needed to write code with confidence, and nothing that runs an agent.
 
 ---
 
-## Phase 1 — Config and LLM provider · `in review`
+## Phase 1 — Config and LLM provider · `done`
 
 **Scope**
 - `rolex.core.config` — layered config (defaults → `rolex.toml` → env), typed
@@ -50,15 +50,32 @@ fallback in Phase 5.
 
 ---
 
-## Phase 2 — Agent loop · `todo`
+## Phase 2 — Agent loop · `in review`
 
 **Scope**
-- `rolex.agent.loop` — think → call tool → observe → repeat, with an iteration cap
-- Tool-call parsing and error recovery for a small model that formats badly
-- Conversation state held in memory for the session
-- One trivial built-in tool (`get_time`) purely to exercise the loop
+- `rolex.agent.loop` — think → call tool → observe → repeat, with a round cap
+- `rolex.tools.base` — what a tool is, including its safety class
+- `rolex.tools.clock` — `get_time`, one real tool to exercise the loop
+- Error recovery: an invented tool name or a tool that raises is reported back
+  to the model as a result, not raised, so it can correct itself
+- `rolex chat` runs through the loop and shows each step
 
-**Done when** the model reliably calls a tool and uses its result in the answer.
+**Done when** the model reliably calls a tool and uses its result in the answer. ✅
+
+Verified against the real `qwen2.5:3b`. Tool *choice* is sound: it called
+`get_time` for "what time is it?" and did not call it for "what is 2+2?",
+"who are you?" or "what is the capital of France?".
+
+**Romanised Marathi is unreliable, and worse than Phase 1 suggested.** "aaj
+kaay var ahe?" worked, but "aata kiti vajle?" and "vel kiti zala" did not —
+the model invented translations ("How old are you?") rather than calling the
+tool. So rolex understands *some* romanised Marathi, unpredictably. For
+spoken commands in Phase 4 this is not good enough, and it is now the
+strongest argument for pulling the Gemini provider forward.
+
+**Traded away.** Answers no longer stream in as they are typed. A reply can
+only be streamed if we know in advance no tool is coming, and we do not. The
+work is printed as it happens instead, which is better feedback anyway.
 
 ---
 

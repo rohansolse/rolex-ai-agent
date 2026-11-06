@@ -66,7 +66,10 @@ These are facts about the target machine and they shape the defaults:
 - `rolex.tools` — each tool is a pure-ish function plus a JSON schema. Knows
   nothing about the LLM.
 - `rolex.agent` — owns the loop. The only module that imports both `llm` and
-  `tools`.
+  `tools`, and the one that translates a `tools.Tool` into the `llm.ToolSchema`
+  a provider wants. It yields the loop's steps as events rather than printing
+  them, so the CLI and, later, the voice interface can show the same work
+  differently.
 - `rolex.interface` — entrypoints (CLI now, voice later). Owns I/O and nothing else.
 
 Dependencies point downward only. `tools` must never import `llm`, and `llm`
@@ -96,6 +99,21 @@ Phase 1 testing found its English good, its understanding of romanised Marathi
 partial, and its Marathi output poor. The system prompt works around this by
 asking for English replies. This is the clearest argument so far for finishing
 the Gemini fallback.
+
+## How the loop handles a small model
+
+A 3B model gets things wrong in specific, recurring ways, and the loop treats
+each as something to recover from rather than an error:
+
+| What it does | What the loop does |
+| --- | --- |
+| Invents a tool name | Replies, as a tool result, that there is no such tool and lists the real ones |
+| Calls a tool that raises | Replies with the failure text, so it can say so or try something else |
+| Keeps calling tools forever | Stops after `MAX_ROUNDS` and asks once more with no tools offered |
+| Sends junk in a tool call | The provider drops the malformed call and keeps the rest |
+
+Nothing here raises. A turn ends with an answer or with a provider failure —
+never with a traceback caused by the model being bad at its job.
 
 ## Safety model
 
