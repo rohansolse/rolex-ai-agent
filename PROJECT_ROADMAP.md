@@ -173,6 +173,32 @@ before the user could reply. It now speaks the question ("Open Google
 Chrome?"), listens for an answer, asks once more if it was unclear, and treats
 anything still unclear as no.
 
+**Two faults found in use, both measured rather than guessed.**
+
+*It ignored people.* Whisper writes the wake word as "Rolik's" about as often
+as "Rolex", and the word-splitting regex cut at the apostrophe, leaving
+"rolik" — skeleton `rlk`, not `rlks`, so no match. One character in a regex.
+Apostrophes now stay inside a word.
+
+*It was deaf a quarter of the time.* The loop recorded a 3-second clip, then
+closed the microphone while whisper worked on it — measured at 0.3 s to open
+the device plus 0.3–1.1 s to transcribe, so roughly one second in every four
+with nothing listening. Anything said in that gap was lost outright. The next
+clip now starts recording before the last one is transcribed, so the
+microphone is never shut. The clip captured while rolex is answering is
+thrown away rather than transcribed, since it mostly contains rolex's own
+voice.
+
+Pre-starting the next clip then introduced three faults of its own, all
+found by review rather than by the suite, because the fakes never opened a
+device: the bare wake word and the permission question each opened a second
+microphone beside the running one, and a clip whose recording failed stayed
+in place so that every later turn re-raised it. Anything recording on the
+main thread now drops the clip in flight first.
+
+`say` also needed `--` before the text: an answer beginning with "- ", which
+the model does produce, was read as a flag and nothing was spoken at all.
+
 **Not verified: the microphone itself.** Recording would have captured the
 user's room, so it was left for them to run. Everything downstream was tested
 on synthesised speech: `say` → wav → whisper → wake word → tool → spoken

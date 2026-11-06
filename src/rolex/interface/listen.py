@@ -11,8 +11,10 @@ Everything is local. Nothing is sent anywhere, and nothing is kept: each
 recording is deleted as soon as it has been transcribed.
 """
 
+import contextlib
 import sys
 from collections.abc import Iterable, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -53,22 +55,91 @@ CONSENT_TRIES = 2
 
 HEARD = "heard > "
 
+#: One worker: only ever one recording is in flight, and it must not outlive
+#: the process, so the threads are daemons.
+#: One worker, so only ever one ffmpeg holds the microphone. Its threads are
+#: not daemons — Python joins them at exit — which is another reason every
+#: exit path calls `Ears.discard`: it waits for the clip in flight and deletes
+#: it, rather than leaving the interpreter to block on a recording nobody
+#: wants.
+_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="rolex-record")
+
+
+RECORD_GRACE = 30.0
+"""Seconds to wait for an abandoned recording before giving up on deleting it."""
+
 
 @dataclass(slots=True)
 class Ears:
-    """Everything needed to hear a command. Grouped so tests can fake it."""
+    """Everything needed to hear. Grouped so tests can fake it."""
 
     recorder: Recorder
     transcriber: Transcriber
 
+    pending: "Future[Path] | None" = None
+    """A clip already being recorded while the last one is transcribed."""
+
     def listen(self, *, seconds: float | None = None) -> str:
-        """Record and transcribe one utterance. Empty means nothing was said."""
-        recording = self.recorder.record(seconds=seconds)
+        """Record and transcribe one utterance. Empty means nothing was said.
+
+        Any clip already in flight is dropped first. Two recordings at once
+        means two ffmpegs fighting over one microphone: the utterance ends up
+        split across both files, and on a device that cannot be opened twice
+        the second one simply fails.
+        """
+        self.discard()
+        return self._read(self.recorder.record(seconds=seconds))
+
+    def next_clip(self, *, seconds: float) -> str:
+        """The next clip, with the microphone never left idle.
+
+        The clip after this one starts recording before this one is
+        transcribed. Done the obvious way round, the microphone is shut for
+        however long whisper takes — roughly a second in every four — and a
+        wake word spoken in that gap is never heard at all. That was the
+        commonest reason rolex appeared to ignore someone.
+        """
+        if self.pending is None:
+            self.pending = self._start(seconds)
+
+        try:
+            recording = self.pending.result()
+        except Exception:
+            # A failed recording must not stay in `pending`, or every later
+            # call re-raises it instantly instead of trying the microphone
+            # again. Ctrl-C is deliberately not caught: the future is still
+            # running, and `discard` needs the handle to clean it up.
+            self.pending = None
+            raise
+
+        self.pending = self._start(seconds)
+        return self._read(recording)
+
+    def discard(self) -> None:
+        """Throw away a clip recorded while rolex was busy answering.
+
+        It holds whatever the room was doing during the last answer — often
+        rolex's own voice — which is not a command.
+        """
+        pending, self.pending = self.pending, None
+        if pending is None:
+            return
+        # A failed recording leaves nothing to delete, which is fine here.
+        with contextlib.suppress(Exception):
+            pending.result(timeout=RECORD_GRACE).unlink(missing_ok=True)
+
+    def _start(self, seconds: float) -> "Future[Path]":
+        return _POOL.submit(self.recorder.record, seconds=seconds)
+
+    def _read(self, recording: Path) -> str:
+        """Transcribe a recording and delete it.
+
+        Deleted whatever happens: a recording of someone's room is not
+        something to leave lying in /tmp.
+        """
         try:
             return self.transcriber.transcribe(recording)
         finally:
-            # Deleted immediately: a recording of someone's room is not
-            # something to leave lying in /tmp.
             Path(recording).unlink(missing_ok=True)
 
 
@@ -94,6 +165,9 @@ class SpokenConsent:
             self.voice.say(question)
 
             try:
+                # `listen`, not `next_clip`: whatever was recording while the
+                # question was being spoken holds rolex's own voice, not an
+                # answer. It is dropped and the answer recorded fresh.
                 said = self.ears.listen(seconds=CONSENT_WINDOW)
             except RolexError as exc:
                 print(f"{STEP}  could not hear an answer: {exc}", flush=True)
@@ -167,9 +241,11 @@ def run_listen(
             said = _next_command(hearing, push_to_talk=push_to_talk)
         except KeyboardInterrupt:
             print("\nStopped listening.")
+            hearing.discard()
             return 0
         except RolexError as exc:
             print(f"\nrolex: {exc}\n", file=sys.stderr)
+            hearing.discard()
             return 1
 
         if said is None:
@@ -177,6 +253,7 @@ def run_listen(
         if said.casefold().strip(" .!?") in QUIT_PHRASES:
             print("Stopped listening.")
             voice.say("Goodbye.")
+            hearing.discard()
             return 0
 
         print(f"{HEARD}{said}")
@@ -191,6 +268,11 @@ def run_listen(
         # Same reason as in chat: a long session would otherwise overflow the
         # context window and Ollama would drop the system prompt from the front.
         agent.history = trim(agent.history)
+
+        # Whatever was recorded while rolex was thinking and talking is not a
+        # command — it is mostly rolex's own answer coming out of the speaker.
+        if not push_to_talk:
+            hearing.discard()
 
 
 def _greet(config: Config, voice: Speaker, *, push_to_talk: bool) -> None:
@@ -212,7 +294,7 @@ def _next_command(ears: Ears, *, push_to_talk: bool) -> str | None:
             raise KeyboardInterrupt from None
         return ears.listen() or None
 
-    heard_text = ears.listen(seconds=LISTEN_WINDOW)
+    heard_text = ears.next_clip(seconds=LISTEN_WINDOW)
     if not heard_text:
         return None
 
@@ -223,9 +305,12 @@ def _next_command(ears: Ears, *, push_to_talk: bool) -> str | None:
     if rest:
         return rest
 
-    # Woken, but nothing asked yet. Listen again for the actual command.
+    # Woken, but nothing asked yet. The next clip is already recording — it
+    # began the moment this one finished — so it holds the command the user
+    # is speaking right now. Taking it is both faster and avoids opening a
+    # second microphone alongside the one already running.
     print(f"{STEP}listening…", flush=True)
-    return ears.listen() or None
+    return ears.next_clip(seconds=LISTEN_WINDOW) or None
 
 
 def _answer(events: Iterable[Event], voice: Speaker) -> None:

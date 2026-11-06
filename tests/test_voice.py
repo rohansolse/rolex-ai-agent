@@ -379,7 +379,7 @@ def test_an_answer_is_read_aloud(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("subprocess.run", fake)
 
     assert Speaker(Config()).say("it is four o'clock")
-    assert fake.argv == ["/usr/bin/say", "it is four o'clock"]
+    assert fake.argv == ["/usr/bin/say", "--", "it is four o'clock"]
 
 
 def test_a_chosen_voice_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -390,6 +390,19 @@ def test_a_chosen_voice_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
     Speaker(Config(voice="Daniel")).say("hello")
 
     assert fake.argv[1:3] == ["-v", "Daniel"]
+
+
+def test_an_answer_starting_with_a_dash_is_still_spoken(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`say` reads a leading "- " as a flag and refuses the whole thing, so a
+    bulleted answer — which the model does produce — went unspoken."""
+    fake = FakeRun()
+    monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/say")
+    monkeypatch.setattr("subprocess.run", fake)
+
+    assert Speaker(Config()).say("- first item")
+    assert fake.argv == ["/usr/bin/say", "--", "- first item"]
 
 
 def test_nothing_is_said_when_speaking_is_off(monkeypatch: pytest.MonkeyPatch) -> None:

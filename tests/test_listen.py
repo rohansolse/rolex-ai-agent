@@ -23,6 +23,7 @@ class FakeEars:
     def __init__(self, utterances: Sequence[str | Exception]) -> None:
         self.utterances = list(utterances)
         self.windows: list[float | None] = []
+        self.discarded = 0
 
     def listen(self, *, seconds: float | None = None) -> str:
         self.windows.append(seconds)
@@ -32,6 +33,12 @@ class FakeEars:
         if isinstance(heard, Exception):
             raise heard
         return heard
+
+    def next_clip(self, *, seconds: float) -> str:
+        return self.listen(seconds=seconds)
+
+    def discard(self) -> None:
+        self.discarded += 1
 
 
 class FakeSpeaker:
@@ -144,9 +151,16 @@ def test_silence_is_ignored() -> None:
 
 def test_the_wake_word_alone_waits_for_the_command() -> None:
     """The user has rolex's attention and has not asked anything yet."""
-    _, provider, ears, _ = listen(["rolex", "what time is it"], ["four o'clock"])
+    _, provider, _, _ = listen(["rolex", "what time is it"], ["four o'clock"])
     assert provider.asked == ["what time is it"]
-    assert ears.windows[1] is None, "the second listen should use the full window"
+
+
+def test_the_wake_word_alone_takes_the_clip_already_recording() -> None:
+    """Opening a second microphone alongside the running one splits the
+    utterance across two files, and fails outright on a device that cannot
+    be opened twice."""
+    _, _, ears, _ = listen(["rolex", "what time is it"], ["four o'clock"])
+    assert ears.windows[:2] == [pytest.approx(3.0), pytest.approx(3.0)]
 
 
 def test_the_wake_window_isshort() -> None:
@@ -326,6 +340,12 @@ class AskEars:
         self.windows.append(seconds)
         return self.answers.pop(0) if self.answers else ""
 
+    def next_clip(self, *, seconds: float) -> str:
+        return self.listen(seconds=seconds)
+
+    def discard(self) -> None:
+        return None
+
 
 def consent(answers: Sequence[str]) -> tuple[bool, AskEars, FakeSpeaker]:
     ears = AskEars(answers)
@@ -418,3 +438,181 @@ def test_a_mutating_tool_in_a_voice_session_is_asked_about_aloud() -> None:
 
     assert opened == ["Google Chrome"]
     assert any("Open Google Chrome?" in said for said in voice.said)
+
+
+# --- the microphone is never left idle -------------------------------------
+
+
+def test_the_next_clip_starts_before_the_last_is_transcribed(tmp_path: Any) -> None:
+    """Otherwise the microphone is shut for however long whisper takes, and a
+    wake word spoken in that gap is never heard."""
+
+    class Transcriber:
+        def transcribe(self, path: Any) -> str:
+            return "rolex hello"
+
+    class CountingRecorder:
+        def __init__(self) -> None:
+            self.made = 0
+
+        def record(self, *, seconds: float | None = None) -> Any:
+            self.made += 1
+            clip = tmp_path / f"clip{self.made}.wav"
+            clip.write_text("audio")
+            return clip
+
+    recorder = CountingRecorder()
+    ears = Ears(recorder, Transcriber())  # type: ignore[arg-type]
+
+    assert ears.next_clip(seconds=3.0) == "rolex hello"
+    assert ears.pending is not None, "the next clip should already be recording"
+
+    ears.discard()
+
+    # Two recordings for one transcript: the second was started before the
+    # first was transcribed, so the microphone was never shut.
+    assert recorder.made == 2
+
+
+def test_a_transcribed_clip_is_deleted(tmp_path: Any) -> None:
+    clip = tmp_path / "clip.wav"
+    clip.write_text("audio")
+
+    class Recorder:
+        def record(self, *, seconds: float | None = None) -> Any:
+            return clip
+
+    class Transcriber:
+        def transcribe(self, path: Any) -> str:
+            return "hello"
+
+    assert Ears(Recorder(), Transcriber()).listen() == "hello"  # type: ignore[arg-type]
+    assert not clip.exists()
+
+
+def test_a_discarded_clip_is_deleted(tmp_path: Any) -> None:
+    """It holds rolex's own answer coming out of the speaker, not a command."""
+    made: list[Any] = []
+
+    class Recorder:
+        def record(self, *, seconds: float | None = None) -> Any:
+            clip = tmp_path / f"clip{len(made)}.wav"
+            clip.write_text("audio")
+            made.append(clip)
+            return clip
+
+    class Transcriber:
+        def transcribe(self, path: Any) -> str:
+            return "rolex hello"
+
+    ears = Ears(Recorder(), Transcriber())  # type: ignore[arg-type]
+    ears.next_clip(seconds=3.0)
+    ears.discard()
+
+    assert ears.pending is None
+    assert not any(clip.exists() for clip in made)
+
+
+def test_discarding_nothing_is_harmless() -> None:
+    ears = Ears(None, None)  # type: ignore[arg-type]
+    ears.discard()
+    assert ears.pending is None
+
+
+def test_what_was_recorded_while_answering_is_thrown_away() -> None:
+    """Twice: once after the answer, once on the way out."""
+    _, _, ears, _ = listen(["rolex hello"], ["hi there"])
+    assert ears.discarded == 2
+
+
+def test_push_to_talk_discards_nothing_between_turns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Nothing records between turns, so only the exit sweep runs."""
+    monkeypatch.setattr("builtins.input", lambda _="": "")
+    _, _, ears, _ = listen(["hello"], ["hi"], push_to_talk=True)
+    assert ears.discarded == 1
+
+
+@pytest.mark.parametrize(
+    ("heard", "expected_code"),
+    [
+        ([], 0),
+        (["rolex stop listening"], 0),
+        ([AudioError("microphone gone")], 1),
+    ],
+)
+def test_no_recording_is_left_running_on_the_way_out(
+    heard: list[str | Exception], expected_code: int
+) -> None:
+    """However the session ends, the clip in flight must not survive it."""
+    code, _, ears, _ = listen(heard, [])
+    assert code == expected_code
+    assert ears.discarded >= 1
+
+
+def test_a_failed_recording_does_not_poison_every_later_one(tmp_path: Any) -> None:
+    """Left in `pending`, a failed future re-raises instantly for ever after,
+    so the microphone is never tried again."""
+    attempts: list[int] = []
+
+    class FlakyRecorder:
+        def record(self, *, seconds: float | None = None) -> Any:
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise AudioError("microphone busy")
+            clip = tmp_path / f"clip{len(attempts)}.wav"
+            clip.write_text("audio")
+            return clip
+
+    class Transcriber:
+        def transcribe(self, path: Any) -> str:
+            return "rolex hello"
+
+    ears = Ears(FlakyRecorder(), Transcriber())  # type: ignore[arg-type]
+
+    with pytest.raises(AudioError):
+        ears.next_clip(seconds=3.0)
+
+    assert ears.pending is None
+    assert ears.next_clip(seconds=3.0) == "rolex hello"
+    ears.discard()
+
+
+def test_listening_drops_a_clip_already_in_flight(tmp_path: Any) -> None:
+    """Two ffmpegs on one microphone split the utterance between them."""
+    live: list[str] = []
+
+    class OneAtATimeRecorder:
+        def __init__(self) -> None:
+            self.made = 0
+
+        def record(self, *, seconds: float | None = None) -> Any:
+            if live:
+                raise AssertionError("two recordings at once")
+            live.append("recording")
+            try:
+                self.made += 1
+                clip = tmp_path / f"clip{self.made}.wav"
+                clip.write_text("audio")
+                return clip
+            finally:
+                live.pop()
+
+    class Transcriber:
+        def transcribe(self, path: Any) -> str:
+            return "yes"
+
+    ears = Ears(OneAtATimeRecorder(), Transcriber())  # type: ignore[arg-type]
+    ears.next_clip(seconds=3.0)
+
+    assert ears.pending is not None
+    assert ears.listen(seconds=4.0) == "yes"
+    assert ears.pending is None
+
+
+def test_asking_permission_does_not_reuse_the_clip_of_its_own_question() -> None:
+    """What was recording while rolex spoke holds rolex's voice, not a yes."""
+    allowed, ears, _ = consent(["yes"])
+    assert allowed
+    assert ears.windows == [pytest.approx(4.0)]

@@ -196,10 +196,33 @@ Each clip is deleted as soon as it is transcribed — including when Ctrl-C
 lands mid-recording — because a recording of someone's room is not something
 to leave in `/tmp`.
 
+### Never shutting the microphone
+
+The wake-word loop records the next clip before transcribing the last one.
+The obvious arrangement — record, transcribe, record — closes the microphone
+for as long as whisper takes, measured here at 0.3 s to open the device plus
+0.3–1.1 s to transcribe. That is about a second in every four during which
+rolex hears nothing at all, and it was the commonest reason it seemed to
+ignore someone.
+
+One recording is in flight at a time, on a single worker thread, and that
+limit is the point rather than an implementation detail: two ffmpegs on one
+microphone split the utterance between their two files, and a device that
+cannot be opened twice simply fails the second one. Pre-starting the next
+clip made this easy to get wrong in three places at once — the bare wake
+word, the permission question, and the exit path — so anything that records
+on the main thread drops the clip in flight first.
+
+The clip recorded while rolex is answering is discarded rather than
+transcribed: it holds rolex's own voice coming out of the speaker. A clip
+whose recording *failed* is dropped too, rather than left in place where
+every later turn would re-raise it instantly without trying the microphone
+again.
+
 ### Hearing the wake word
 
-Whisper transcribed the same spoken "rolex" as "Rolex", "Rulics" and "relax",
-so the wake word cannot be matched literally. String similarity does not
+Whisper transcribed the same spoken "rolex" as "Rolex", "Rulics", "Rolik's"
+and "relax", so the wake word cannot be matched literally. String similarity does not
 separate the cases either — "rulics" scores 0.36 against "rolex" while "rules"
 scores 0.60.
 
@@ -207,6 +230,10 @@ What works is comparing **consonant skeletons**: drop the vowels, normalise
 `x`→`ks` and `c`→`k`, collapse doubled letters. Every observed mishearing
 reduces to `rlks`; "rules", "release", "rolling", "robot", "ready" and the
 rest do not.
+
+Apostrophes count as part of a word. Splitting on them left "Rolik's" as
+"rolik", whose skeleton is `rlk`, and rolex ignored everyone who got that
+transcription — which was most of them.
 
 The asymmetry is deliberate. A false wake costs a few wasted seconds of
 listening; a missed wake means rolex ignored the user, which is the failure

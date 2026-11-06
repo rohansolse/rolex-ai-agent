@@ -43,7 +43,10 @@ class Speaker:
         argv = [executable]
         if self.config.voice:
             argv += ["-v", self.config.voice]
-        argv.append(spoken)
+        # Everything after `--` is text, never a flag. Without it an answer
+        # beginning with "- " — a bulleted list, which the model does produce
+        # — makes `say` exit with "invalid option" and nothing is spoken.
+        argv += ["--", spoken]
 
         try:
             result = subprocess.run(
