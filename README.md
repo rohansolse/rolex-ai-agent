@@ -210,7 +210,10 @@ rolex  > Draft is in the message box, not sent. Read it, change it if you
 ```
 
 You can steer it: *"reply saying Friday after 5"*, *"answer this saying
-yes"*.
+yes"*. And you can get to the chat the same way: *"open the testing ai
+group"*, *"open chat with Priya"* — it searches for it rather than hunting
+the list, and a name said loosely ("MBRJ Self" for "MBRJ | Self") still
+finds it.
 
 **It never sends.** The draft sits in the box until you press Enter. That is
 the whole safety of it.

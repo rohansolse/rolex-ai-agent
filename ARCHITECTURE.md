@@ -381,6 +381,28 @@ asked. Hence `reply_model`, separate from `model`.
 Anything unmatched falls through to the agent loop unchanged. The router only
 claims what is certain.
 
+## Opening a WhatsApp chat
+
+Searched for, not hunted in the list: the list is virtualised, so a chat
+far down it is not in the page at all until something scrolls to it.
+
+Four things were wrong the first time, and each is worth remembering:
+
+- **WhatsApp changed the search box from a contenteditable div to an
+  `input`.** The old selector matched nothing and the error said "sign in
+  first", which sent the user looking at the wrong thing. Both are accepted
+  now, and an `input` is filled through the prototype's value setter with an
+  `input` event, because React ignores a plain assignment.
+- **Chrome has to be in front before a real click.** Without it the click
+  goes to whatever window is, and the chat never opens.
+- **Search results animate into place.** A click sent while they are
+  sliding lands on whatever was at that spot a moment earlier, so the
+  position has to come back the same twice before it is used.
+- **The name the user says is not the name WhatsApp stores.** "MBRJ Self"
+  is saved as "MBRJ | Self" with an emoji. WhatsApp's own search matches the
+  phrase and finds nothing, so one distinctive word is searched and the rows
+  are matched on all words being present, in any order.
+
 ## Drafting a reply
 
 `rolex.agent.reply` reads the open conversation, asks the model for the next
@@ -413,9 +435,10 @@ deliberate:
   words instead threw away "Sure, I'll send it tomorrow." — a commitment,
   dropped in silence.
 
-The message box is filled with `execCommand('insertText')` rather than by
-setting its text, for the same reason clicking uses real mouse events: a box
-built in React ignores text it was handed.
+The message box is typed into for real — clicked, selected with Cmd-A, then
+keystrokes — for the same reason clicking uses real mouse events.
+`execCommand('insertText')` was tried first: it reported success and left
+the box exactly as it was.
 
 ## Naming tools for a small model
 

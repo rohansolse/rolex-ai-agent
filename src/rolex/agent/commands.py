@@ -76,6 +76,19 @@ COMMANDS: tuple[Command, ...] = (
         ),
         takes_rest=True,
     ),
+    Command(
+        name="open_chat",
+        patterns=(
+            # "open the testing ai group", "open chat with Priya"
+            r"^(?:please\s+)?(?:open|go\s+to|switch\s+to|show)\s+"
+            r"(?:the\s+)?(?:whatsapp\s+)?(?:chat|group|conversation)\s+"
+            r"(?:with\s+|called\s+|named\s+)?",
+            # "open testing ai group", "open the mbrj self chat"
+            r"^(?:please\s+)?(?:open|go\s+to|switch\s+to|show)\s+(?:the\s+)?"
+            r"(?=.*\b(?:group|chat|conversation)\b)",
+        ),
+        takes_rest=True,
+    ),
 )
 
 
@@ -91,7 +104,12 @@ def understand(said: str) -> Match | None:
             if found is None:
                 continue
             rest = _rest_of(said, offsets, found.end()) if command.takes_rest else ""
-            return Match(name=command.name, rest=_tidy_rest(rest))
+            tidied_rest = _tidy_rest(rest)
+            if command.name == "open_chat":
+                tidied_rest = _chat_name(tidied_rest)
+                if not tidied_rest:
+                    continue
+            return Match(name=command.name, rest=tidied_rest)
     return None
 
 
@@ -134,6 +152,20 @@ def _tidy_rest(rest: str) -> str:
         if rest.startswith(f"{opener} "):
             return rest[len(opener) + 1 :].strip()
     return rest
+
+
+def _chat_name(rest: str) -> str:
+    """A chat's name, with the words around it removed.
+
+    "the testing ai group" and "testing ai chat" are both the chat called
+    "testing ai"; WhatsApp does not have "group" in its name.
+    """
+    words = rest.strip().strip(".?!").split()
+    while words and words[0].casefold() in {"me", "the", "my", "our", "whatsapp", "a"}:
+        words.pop(0)
+    while words and words[-1].casefold() in {"group", "chat", "conversation", "whatsapp"}:
+        words.pop()
+    return " ".join(words)
 
 
 def handles(said: str) -> bool:

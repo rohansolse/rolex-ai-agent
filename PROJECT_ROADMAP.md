@@ -383,6 +383,14 @@ marker, and was being compared literally; `*new` was remembered process-wide
 rather than per page; and `input[type=submit]` was described as a field, so
 the model would try to type into a Send button.
 
+**"Open the testing ai group" is a command too.** The model was clicking
+numbered items at random instead of searching — it clicked "Chats", then
+"Calls" — and the wrong conversation is how a message reaches the wrong
+person. Opening a chat by name now goes through the same rule-based path as
+replying, and was verified five times in a row against the real WhatsApp Web,
+including the name said as "MBRJ Self" when it is stored as "MBRJ | Self"
+with an emoji.
+
 **Nothing is sent.** The draft lands in the message box and stops. Reading it
 before it goes is the user's job and the whole safety of the feature.
 

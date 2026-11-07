@@ -237,3 +237,50 @@ def test_no_history_is_fine(page: list[str]) -> None:
     match = recognised("reply to this")
     assert match is not None
     assert list(carry_out(match, "reply to this", FakeProvider(), Config()))
+
+
+# --- opening a chat --------------------------------------------------------
+
+
+def test_opening_a_chat_searches_for_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked: list[str] = []
+
+    def opener(name: str) -> str:
+        asked.append(name)
+        return f"Opened the WhatsApp chat with {name}."
+
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", opener)
+
+    events = run("open the testing ai group", FakeProvider())
+
+    assert asked == ["testing ai"]
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "testing ai" in last.content
+
+
+def test_the_model_is_not_asked_how_to_open_a_chat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", lambda name: "Opened.")
+    provider = FakeProvider()
+
+    run("open testing ai group", provider)
+
+    assert provider.asked == 0
+
+
+def test_a_chat_that_cannot_be_opened_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def refuse(name: str) -> str:
+        raise ToolError("no WhatsApp chat called 'ghost' came up in the search")
+
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", refuse)
+
+    events = run("open the ghost group", FakeProvider())
+
+    assert any(isinstance(e, ToolFinished) and e.failed for e in events)
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "came up in the search" in last.content

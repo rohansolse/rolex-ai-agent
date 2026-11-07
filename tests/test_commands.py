@@ -96,3 +96,50 @@ def test_the_instruction_keeps_the_users_own_words(said: str, instruction: str) 
     match = understand(said)
     assert match is not None
     assert match.rest == instruction
+
+
+# --- opening a chat by name -----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("said", "name"),
+    [
+        ("open testing ai group", "testing ai"),
+        ("open the testing ai group", "testing ai"),
+        ("open chat with Priya Deshmukh", "Priya Deshmukh"),
+        ("go to the MBRJ Self chat", "MBRJ Self"),
+        ("switch to testing ai group", "testing ai"),
+        ("show me the testing ai conversation", "testing ai"),
+        ("open the whatsapp group testing ai", "testing ai"),
+    ],
+)
+def test_opening_a_chat_is_recognised(said: str, name: str) -> None:
+    """The model was clicking numbered items at random instead of
+    searching, and the wrong conversation is how a message reaches the
+    wrong person."""
+    match = understand(said)
+    assert match is not None
+    assert match.name == "open_chat"
+    assert match.rest == name
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "open chrome",
+        "open safari",
+        "open https://example.com",
+        "open the browser",
+        "open",
+    ],
+)
+def test_opening_other_things_is_left_to_the_model(said: str) -> None:
+    match = understand(said)
+    assert match is None or match.name != "open_chat"
+
+
+def test_the_word_group_is_not_part_of_the_name() -> None:
+    """WhatsApp does not have "group" in the name."""
+    match = understand("open the testing ai group")
+    assert match is not None
+    assert "group" not in match.rest

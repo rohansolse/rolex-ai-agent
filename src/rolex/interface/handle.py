@@ -16,6 +16,7 @@ from rolex.core.config import Config
 from rolex.core.errors import RolexError
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
+from rolex.tools.chat_page import open_whatsapp_chat
 
 
 def recognised(said: str) -> Match | None:
@@ -40,7 +41,31 @@ def carry_out(
         yield from _remember(_reply(match, provider, config, approve), said, history)
         return
 
+    if match.name == "open_chat":
+        yield from _remember(_open_chat(match), said, history)
+        return
+
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
+
+
+def _open_chat(match: Match) -> Iterator[Event]:
+    """Open a WhatsApp conversation by name.
+
+    A rule, not a judgement: the model was clicking numbered items at random
+    rather than searching, and opening the wrong conversation is how a
+    message reaches the wrong person.
+    """
+    yield ToolStarted("open_whatsapp_chat", {"name": match.rest})
+
+    try:
+        done = open_whatsapp_chat(match.rest)
+    except RolexError as exc:
+        yield ToolFinished("open_whatsapp_chat", str(exc), failed=True)
+        yield Answer(str(exc))
+        return
+
+    yield ToolFinished("open_whatsapp_chat", done)
+    yield Answer(done)
 
 
 def _remember(events: Iterator[Event], said: str, history: list[Message] | None) -> Iterator[Event]:

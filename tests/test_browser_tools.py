@@ -564,13 +564,113 @@ def test_the_prompt_separates_a_tab_from_an_application() -> None:
     assert "close_app" in prompt
 
 
-def test_duplicate_whatsapp_contacts_stop_before_selecting(monkeypatch: pytest.MonkeyPatch) -> None:
+# --- opening a WhatsApp chat ----------------------------------------------
+
+
+def whatsapp(
+    monkeypatch: pytest.MonkeyPatch, answers: list[str]
+) -> tuple[list[str], list[tuple[float, float]]]:
+    """Fake the page and the pointer; return the scripts run and the clicks."""
     from rolex.tools import chat_page
 
-    results = iter(["ok", "Multiple chats match. Select the correct one manually."])
-    monkeypatch.setattr(chat_page, "_javascript", lambda _: next(results))
-    with pytest.raises(ToolError, match="Multiple chats"):
-        chat_page.open_whatsapp_chat("Asha")
+    scripts: list[str] = []
+    clicked: list[tuple[float, float]] = []
+    replies = iter(answers)
+
+    def run(script: str) -> str:
+        scripts.append(script)
+        return next(replies)
+
+    monkeypatch.setattr(chat_page, "_require_chrome", lambda: None)
+    monkeypatch.setattr(chat_page, "_javascript", run)
+    monkeypatch.setattr(chat_page, "POLL", 0)
+    monkeypatch.setattr("rolex.tools.pointer.click", lambda x, y: clicked.append((x, y)))
+    return scripts, clicked
+
+
+def test_a_chat_is_found_by_searching(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The chat list is virtualised: a chat far down it is not in the page
+    at all until something scrolls to it. Searching is what a person does."""
+    from rolex.tools import chat_page
+
+    found = json.dumps({"x": 280, "y": 632, "label": "testing ai"})
+    _, clicked = whatsapp(
+        monkeypatch,
+        ["https://web.whatsapp.com/", "ok", found, found, "testing ai", ""],
+    )
+
+    assert chat_page.open_whatsapp_chat("testing ai") == (
+        "Opened the WhatsApp chat with testing ai."
+    )
+    assert clicked == [(280.0, 632.0)]
+
+
+def test_the_search_box_may_be_an_input_or_a_contenteditable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """WhatsApp changed it from one to the other, which is what broke this."""
+    from rolex.tools import chat_page
+
+    spot = json.dumps({"x": 1, "y": 2, "label": "a"})
+    scripts, _ = whatsapp(monkeypatch, ["https://web.whatsapp.com/", "ok", spot, spot, "a", ""])
+    chat_page.open_whatsapp_chat("a")
+
+    typing = scripts[1]
+    assert "input[role=textbox]" in typing
+    assert "contenteditable" in typing
+
+
+def test_a_name_that_never_comes_up_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rolex.tools import chat_page
+
+    whatsapp(
+        monkeypatch,
+        ["https://web.whatsapp.com/", "ok", *["waiting"] * 40],
+    )
+
+    with pytest.raises(ToolError, match="came up in the search"):
+        chat_page.open_whatsapp_chat("nobody")
+
+
+def test_a_chat_that_will_not_open_is_reported(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clicking is not the same as the conversation appearing."""
+    from rolex.tools import chat_page
+
+    found = json.dumps({"x": 1, "y": 2, "label": "a"})
+    whatsapp(
+        monkeypatch,
+        ["https://web.whatsapp.com/", "ok", found, found, *["something else"] * 40, ""],
+    )
+
+    with pytest.raises(ToolError, match="did not open"):
+        chat_page.open_whatsapp_chat("a")
+
+
+def test_an_empty_name_is_refused() -> None:
+    from rolex.tools import chat_page
+
+    with pytest.raises(ToolError, match="give the chat's name"):
+        chat_page.open_whatsapp_chat("   ")
+
+
+def test_it_refuses_when_whatsapp_is_not_the_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rolex.tools import chat_page
+
+    whatsapp(monkeypatch, ["https://example.com/"])
+
+    with pytest.raises(ToolError, match="not the page in front"):
+        chat_page.open_whatsapp_chat("a")
+
+
+def test_the_search_is_cleared_afterwards(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A search left in place hides every other chat from the next listing."""
+    from rolex.tools import chat_page
+
+    found = json.dumps({"x": 1, "y": 2, "label": "a"})
+    scripts, _ = whatsapp(monkeypatch, ["https://web.whatsapp.com/", "ok", found, found, "a", ""])
+    chat_page.open_whatsapp_chat("a")
+
+    assert "delete" in scripts[-1] or "''" in scripts[-1]
 
 
 # --- saying where each thing is -------------------------------------------
@@ -721,3 +821,76 @@ def test_the_heading_and_the_items_come_from_one_call(chrome: FakeRun) -> None:
     chrome.answers = ["true", page_list("1. [page/button] Send", "WhatsApp")]
     browser.page_buttons()
     assert len(chrome.javascript) == 1
+
+
+def test_a_moving_result_is_waited_out(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Results animate into place, and a click sent while they are sliding
+    lands on whatever was at that spot a moment earlier."""
+    from rolex.tools import chat_page
+
+    moving = json.dumps({"x": 280, "y": 583, "label": "a"})
+    settled = json.dumps({"x": 280, "y": 397, "label": "a"})
+    _, clicked = whatsapp(
+        monkeypatch,
+        ["https://web.whatsapp.com/", "ok", moving, settled, settled, "a", ""],
+    )
+
+    chat_page.open_whatsapp_chat("a")
+
+    assert clicked == [(280.0, 397.0)]
+
+
+def test_a_name_missing_its_punctuation_still_opens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A chat saved as "MBRJ | Self" is asked for as "MBRJ Self", and both
+    WhatsApp's search and a literal check miss it."""
+    from rolex.tools import chat_page
+
+    spot = json.dumps({"x": 1, "y": 2, "label": "MBRJ | Self"})
+    whatsapp(
+        monkeypatch,
+        ["https://web.whatsapp.com/", "ok", spot, spot, "MBRJ | Self \U0001f468", ""],
+    )
+
+    assert "MBRJ Self" in chat_page.open_whatsapp_chat("MBRJ Self")
+
+
+def test_the_search_uses_one_distinctive_word(monkeypatch: pytest.MonkeyPatch) -> None:
+    """WhatsApp's own search matches the phrase, so punctuation in the real
+    name makes a whole-phrase search find nothing."""
+    from rolex.tools import chat_page
+
+    assert chat_page._search_term("MBRJ Self") == "MBRJ"
+    assert chat_page._search_term("testing ai") == "testing"
+    assert chat_page._search_term("ab") == "ab"
+
+
+def test_the_matching_accepts_the_words_in_any_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rolex.tools import chat_page
+
+    spot = json.dumps({"x": 1, "y": 2, "label": "a"})
+    scripts, _ = whatsapp(monkeypatch, ["https://web.whatsapp.com/", "ok", spot, spot, "a", ""])
+    chat_page.open_whatsapp_chat("a")
+
+    locating = scripts[2]
+    assert "words.every" in locating
+
+
+def test_chrome_is_brought_forward_before_clicking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A real click goes where the pointer is told; a background Chrome
+    never receives it."""
+    from rolex.tools import chat_page
+
+    focused: list[bool] = []
+    monkeypatch.setattr(chat_page, "_focus", lambda: focused.append(True))
+
+    spot = json.dumps({"x": 1, "y": 2, "label": "a"})
+    whatsapp(monkeypatch, ["https://web.whatsapp.com/", "ok", spot, spot, "a", ""])
+    chat_page.open_whatsapp_chat("a")
+
+    assert focused == [True]
