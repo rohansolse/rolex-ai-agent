@@ -550,3 +550,12 @@ def test_the_prompt_separates_a_tab_from_an_application() -> None:
     prompt = system_prompt(Config())
     assert "close_tab" in prompt
     assert "close_app" in prompt
+
+
+def test_duplicate_whatsapp_contacts_stop_before_selecting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rolex.tools import chat_page
+
+    results = iter(["ok", "Multiple chats match. Select the correct one manually."])
+    monkeypatch.setattr(chat_page, "_javascript", lambda _: next(results))
+    with pytest.raises(ToolError, match="Multiple chats"):
+        chat_page.open_whatsapp_chat("Asha")

@@ -81,15 +81,19 @@ def _doctor(config: Config) -> int:
 
     print(f"provider     {config.provider} ({provider.name})")
     print(f"model        {config.model}")
+    print(f"reply model  {config.drafting_model}")
+    print(f"reply in     {config.reply_language}")
     print(f"ollama host  {config.ollama_host}")
     print(f"models dir   {config.ollama_models_dir}")
     print(f"destructive  {'allowed' if config.allow_destructive else 'refused'}")
     print(f"tools        {', '.join(tool.name for tool in registered()) or 'none'}")
 
-    # A warning, not a failure: rolex never opens this directory itself, and a
-    # default ~/.ollama setup works perfectly well without it.
+    # A warning, not a failure: rolex never opens this directory itself. The
+    # server decides where models live, and it may well be somewhere else —
+    # this setting only matters for the `ollama serve` command rolex prints.
     if not config.ollama_models_dir.is_dir():
         print("             not there — fine unless you meant to use the external drive")
+    print("             (the running server decides; this is only for the start command)")
 
     print()
     for label, detail in _voice_report(config):

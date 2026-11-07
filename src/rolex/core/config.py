@@ -20,6 +20,9 @@ from rolex.core.errors import ConfigError
 
 ProviderName = Literal["local", "gemini"]
 
+REPLY_LANGUAGES = ("same", "english", "marathi")
+"""What a drafted reply may be written in. ``same`` follows the conversation."""
+
 
 def _project_root() -> Path:
     """Where ``.env`` and ``rolex.toml`` are looked for.
@@ -125,6 +128,24 @@ class Config:
     """A macOS voice name, as ``say -v '?'`` lists them. Empty is the system
     default."""
 
+    reply_model: str = ""
+    """Model used for drafting replies. Empty means the same as `model`.
+
+    Worth setting to something larger. Measured on a client asking for
+    wedding charges with no price anywhere in the conversation: `qwen2.5:3b`
+    answered "I charge $500" — a number it invented, about to be sent to a
+    client — while `qwen2.5:7b` said it did not have the pricing and asked
+    what they needed. Choosing a tool is where the big model earns nothing;
+    writing to a client is where it earns its seconds.
+    """
+
+    reply_language: str = "same"
+    """What language drafted replies are written in.
+
+    ``same`` follows whatever the user has been writing in that conversation,
+    which is usually what they want. ``english`` or ``marathi`` force one.
+    """
+
     allow_destructive: bool = False
     """Whether rolex may run tools that delete, overwrite or send something.
 
@@ -136,6 +157,11 @@ class Config:
     """Default quiet: INFO lines land in the middle of the conversation and
     the terminal is the user's, not a log sink. ROLEX_LOG_LEVEL=DEBUG when
     diagnosing."""
+
+    @property
+    def drafting_model(self) -> str:
+        """Which model writes replies."""
+        return self.reply_model or self.model
 
     @property
     def threads(self) -> int:
@@ -220,6 +246,14 @@ def _as_threads(name: str, raw: object) -> int:
     return value
 
 
+def _as_choice(name: str, raw: object, allowed: tuple[str, ...]) -> str:
+    """Read a setting that may only be one of a few words."""
+    text = str(raw).strip().casefold()
+    if text not in allowed:
+        raise ConfigError(f"{name} must be one of {', '.join(allowed)}, got {raw!r}")
+    return text
+
+
 def _as_bool(name: str, raw: object) -> bool:
     """Read a boolean from a config file or an environment string."""
     if isinstance(raw, bool):
@@ -271,6 +305,8 @@ _ENV_KEYS: dict[str, str] = {
     "request_timeout": f"{ENV_PREFIX}REQUEST_TIMEOUT",
     "temperature": f"{ENV_PREFIX}TEMPERATURE",
     "allow_destructive": f"{ENV_PREFIX}ALLOW_DESTRUCTIVE",
+    "reply_language": f"{ENV_PREFIX}REPLY_LANGUAGE",
+    "reply_model": f"{ENV_PREFIX}REPLY_MODEL",
     "whisper_model": f"{ENV_PREFIX}WHISPER_MODEL",
     "audio_device": f"{ENV_PREFIX}AUDIO_DEVICE",
     "stream_device": f"{ENV_PREFIX}STREAM_DEVICE",
@@ -315,6 +351,8 @@ def _build(values: dict[str, Any]) -> Config:
             coerced[field.name] = _as_positive_float(field.name, raw)
         elif field.name == "transcribe_threads":
             coerced[field.name] = _as_threads(field.name, raw)
+        elif field.name == "reply_language":
+            coerced[field.name] = _as_choice(field.name, raw, REPLY_LANGUAGES)
         elif field.name in {"allow_destructive", "speak", "stream"}:
             coerced[field.name] = _as_bool(field.name, raw)
         elif field.name == "whisper_model":

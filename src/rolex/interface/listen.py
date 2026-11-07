@@ -21,6 +21,7 @@ from typing import Any, Protocol
 
 from rolex.agent.consent import Policy
 from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
+from rolex.agent.reply import Approve
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, RolexError, StreamError
 from rolex.interface.chat import (
@@ -30,6 +31,7 @@ from rolex.interface.chat import (
     system_prompt,
     trim,
 )
+from rolex.interface.handle import carry_out, recognised
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
 from rolex.tools import registered
@@ -229,15 +231,27 @@ class SpokenConsent:
     voice: Speaker
     tries: int = CONSENT_TRIES
 
+    def replace_message(self, existing: str, draft: str) -> bool:
+        """Ask out loud before typing over something already in the box.
+
+        Filling the box selects everything and types over it. A half-written
+        message disappearing without a word is not something to do to
+        someone who is only talking to their computer.
+        """
+        print(f"{STEP}the message box already has: {short(existing, 60)}", flush=True)
+        return self._yes_or_no("There is already something in the message box. Replace it?")
+
     def ask(self, tool: Tool, arguments: Mapping[str, Any]) -> bool:
-        """Put the question to the user and wait for a spoken yes or no.
+        """Put the question to the user and wait for a spoken yes or no."""
+        return self._yes_or_no(_question(tool, arguments))
+
+    def _yes_or_no(self, question: str) -> bool:
+        """Ask out loud and wait for an answer.
 
         Anything that is not clearly a yes is a no. Mishearing a refusal as
-        consent opens something the user did not want; mishearing consent as
+        consent does something the user did not want; mishearing consent as
         unclear only costs them saying it again.
         """
-        question = _question(tool, arguments)
-
         for attempt in range(self.tries):
             print(f"{STEP}{question}", flush=True)
             self.voice.say(question)
@@ -320,7 +334,15 @@ def run_listen(
     _greet(config, voice, push_to_talk=push_to_talk, streaming=isinstance(hearing, StreamEars))
 
     try:
-        return _converse(agent, hearing, voice, push_to_talk=push_to_talk)
+        return _converse(
+            agent,
+            hearing,
+            voice,
+            backend,
+            config,
+            asker.replace_message,
+            push_to_talk=push_to_talk,
+        )
     finally:
         _close(hearing)
 
@@ -361,6 +383,9 @@ def _converse(
     agent: Agent,
     hearing: "Hearing",
     voice: Speaker,
+    provider: LLMProvider,
+    config: Config,
+    approve: Approve,
     *,
     push_to_talk: bool,
 ) -> int:
@@ -385,7 +410,7 @@ def _converse(
         print(f"{HEARD}{said}")
 
         try:
-            _answer(agent.ask(said), voice)
+            _answer(_respond(agent, said, provider, config, approve), voice)
         except ProviderError as exc:
             print(f"\n[{exc}]\n", file=sys.stderr)
         except KeyboardInterrupt:
@@ -399,6 +424,20 @@ def _converse(
         # command — it is mostly rolex's own answer coming out of the speaker.
         if not push_to_talk:
             hearing.discard()
+
+
+def _respond(
+    agent: Agent,
+    said: str,
+    provider: LLMProvider,
+    config: Config,
+    approve: Approve,
+) -> Iterable[Event]:
+    """Carry out a recognised command, or let the agent loop work it out."""
+    match = recognised(said)
+    if match is not None:
+        return carry_out(match, said, provider, config, approve, agent.history)
+    return agent.ask(said)
 
 
 def _greet(config: Config, voice: Speaker, *, push_to_talk: bool, streaming: bool) -> None:

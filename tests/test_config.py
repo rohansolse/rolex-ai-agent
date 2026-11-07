@@ -129,3 +129,23 @@ def test_temperature_is_coerced(tmp_path: Path) -> None:
 def test_bad_temperature_is_rejected(tmp_path: Path, value: str) -> None:
     with pytest.raises(ConfigError, match="temperature"):
         load_config(root=tmp_path, env={"ROLEX_TEMPERATURE": value})
+
+
+def test_the_drafting_model_falls_back_to_the_main_one() -> None:
+    assert Config(model="qwen2.5:3b").drafting_model == "qwen2.5:3b"
+
+
+def test_a_separate_drafting_model_is_used_when_set() -> None:
+    config = Config(model="qwen2.5:3b", reply_model="qwen2.5:7b")
+    assert config.drafting_model == "qwen2.5:7b"
+
+
+@pytest.mark.parametrize("language", ["same", "english", "marathi", "MARATHI"])
+def test_reply_language_accepts_the_known_ones(tmp_path: Path, language: str) -> None:
+    config = load_config(root=tmp_path, env={"ROLEX_REPLY_LANGUAGE": language})
+    assert config.reply_language == language.casefold()
+
+
+def test_an_unknown_reply_language_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(ConfigError, match="reply_language must be one of"):
+        load_config(root=tmp_path, env={"ROLEX_REPLY_LANGUAGE": "klingon"})

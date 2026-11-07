@@ -7,9 +7,11 @@ It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. A free-tier Google Gemini fallback is planned for when the
 local model is not enough.
 
-> **Status: Phase 5.** You can speak to it, and it can act on the web page in
-> front of you — read it, scroll it, click things, type. Everything — the
-> language model, the speech recognition, the voice — runs on this Mac.
+> **Status: Phase 6.** Say "rolex, reply to this" with a client's chat open
+> and it reads the conversation, writes an answer and puts it in the message
+> box for you to check. It can also act on the page — scroll, click, type.
+> Everything — the language model, the speech recognition, the voice — runs
+> on this Mac.
 > See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for what lands when, and
 > [ARCHITECTURE.md](ARCHITECTURE.md) for how it is put together.
 
@@ -91,11 +93,15 @@ know the time, so an answer with no `get_time` line above it would be invented.
 | `close_app` | Quits an application | **yes** |
 | `open_url` | Opens an http(s) page | **yes** |
 | `search_web` | Searches the web in the browser | **yes** |
+| `read_chat` | Reads the open chat conversation | no |
+| `put_in_message_box` | Puts a draft in the box, unsent | **yes** |
 | `read_page` | Reads the page open in Chrome | no |
 | `page_buttons` | Lists what can be clicked, numbered | no |
 | `scroll_page` | Scrolls the page | no |
 | `click_text` | Clicks something by its text | **yes** |
 | `click_item` | Clicks a numbered item from `page_buttons` | **yes** |
+| `list_tabs` | Lists Chrome's tabs, numbered | no |
+| `close_tab` / `switch_tab` | Closes or switches to a tab | **yes** |
 | `type_text` | Types into the focused box | **yes** |
 | `press_key` | Presses Enter, Escape, Tab… | **yes** |
 
@@ -186,6 +192,47 @@ anywhere else. Run `make install` first; a bare `uv sync` would build a real
 **Model weights have to live on the external drive.** The internal disk is
 nearly full, so `.env.example` points `OLLAMA_MODELS` at `/Volumes/DEVHAN`.
 Keep it that way unless you have freed up room.
+
+## Answering a client
+
+With a conversation open in Chrome:
+
+```
+you say: "rolex, reply to this"
+       · read_chat()
+       ·   Conversation with Priya Deshmukh
+       · put_in_message_box()
+rolex  > Draft is in the message box, not sent. Read it, change it if you
+         like, then press Enter.
+
+         I don't have the exact pricing to hand — could you tell me whether
+         you need the haldi covered as well? I'll send you a quote today.
+```
+
+You can steer it: *"reply saying Friday after 5"*, *"answer this saying
+yes"*.
+
+**It never sends.** The draft sits in the box until you press Enter. That is
+the whole safety of it.
+
+Two more things it will not do: type over a message you had already started
+without asking, and type into a different conversation from the one it read,
+if you switched tabs while it was writing.
+
+### Which model writes
+
+Set `ROLEX_REPLY_MODEL` to something larger than the one you chat with. It
+matters more than it sounds: asked about wedding charges with no price in the
+conversation, `qwen2.5:3b` replied *"I charge $500"* — a figure it invented,
+about to be sent to a client. `qwen2.5:7b` said it did not have the pricing
+and asked what was needed.
+
+```bash
+ROLEX_MODEL=qwen2.5:3b ROLEX_REPLY_MODEL=qwen2.5:7b make listen
+```
+
+`ROLEX_REPLY_LANGUAGE` is `same` (follow the conversation), `english` or
+`marathi`.
 
 ## Acting on a web page
 

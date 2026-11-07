@@ -46,7 +46,7 @@ understands simple romanised Marathi ("browser open kar"), but its Marathi
 *output* is poor and it misreads some Marathi words ("guniley"). The system
 prompt therefore asks it to understand any language and reply in English.
 Better Marathi needs a larger model than 8 GB comfortably holds, or the Gemini
-fallback in Phase 6.
+fallback in Phase 7.
 
 ---
 
@@ -231,7 +231,7 @@ not needed.
 
 ---
 
-## Phase 5 — Acting on web pages · `in review`
+## Phase 5 — Acting on web pages · `done`
 
 Opening a page and stopping there is not an assistant. This is the phase that
 answers "what is the use of an agent that cannot click?".
@@ -320,7 +320,58 @@ model, asked to open a group on a page already in front of it, invented
 telling it plainly not to. This is the strongest case yet for a larger
 model: the tools are no longer the limit.
 
-## Phase 6 — Gemini fallback and provider switching · `todo`
+## Phase 6 — Drafting client replies · `in review`
+
+The job the user actually does all day, which until now took eight steps:
+read the chat, open ChatGPT in another tab, screenshot WhatsApp, paste it,
+ask for a reply, copy it, switch back, paste. None of the screenshotting or
+copying is necessary — rolex can read the conversation as text and type into
+the box.
+
+**Scope**
+- `rolex.tools.chat_page` — `read_chat` and `put_in_message_box`
+- `rolex.agent.reply` — read, draft, place; never send
+- `rolex.agent.commands` — the handful of sentences rolex acts on without
+  asking a model what to do
+- `rolex.interface.handle` — carries them out, reporting the same events
+- `reply_model` and `reply_language` settings
+
+**Done when** "reply to this" puts a usable draft in the message box. ✅
+
+**A bigger model does not fix tool choice.** Measured on seven ordinary
+instructions: `qwen2.5:3b` scored 5/7, `qwen2.5:7b-instruct-q3_K_M` scored
+4/7, and `qwen2.5:7b` scored 5/7 while taking fifty-two seconds to get one of
+them wrong. Three models, no improvement, ten times slower. That is why the
+sentences the user says most now go through a rule instead.
+
+**Heavy quantisation breaks tool calling specifically.** The q3 build knew
+the right tool and wrote its name out as prose — `close_app "Google Chrome"`
+— rather than calling it. Size was not the problem; compression was.
+
+**A bigger model does fix drafting, which is where it matters.** Asked about
+wedding charges with no price anywhere in the conversation, `qwen2.5:3b`
+replied "I charge $500" — a number it invented, about to be sent to a client.
+`qwen2.5:7b`, given the same instructions, said it did not have the pricing
+and asked what they needed. So `reply_model` can differ from `model`: the
+small one for everything, the large one for the paragraph that reaches a
+client.
+
+**Review found seven things, four of them about the gap between reading a
+chat and typing into it.** The conversation is now compared before and after
+drafting, because a tab switch during the model call would put one client's
+reply in another's box. The transcript is fenced and labelled as data, since
+a client's message is untrusted text sitting in a prompt. An instruction the
+user adds keeps their own punctuation and digits — taken from the normalised
+sentence, "the price is Rs 2,500" became "rs 2 500", a mangled figure in the
+one module written to keep invented numbers out of a client's chat. And the
+command patterns were narrowed twice: "answer my question about python" and
+"what should I reply to the email from john" were both being routed into the
+WhatsApp drafting flow.
+
+**Nothing is sent.** The draft lands in the message box and stops. Reading it
+before it goes is the user's job and the whole safety of the feature.
+
+## Phase 7 — Gemini fallback and provider switching · `todo`
 
 **Scope**
 - `rolex.llm.gemini` — free-tier provider behind the same protocol
@@ -332,7 +383,7 @@ model: the tools are no longer the limit.
 
 ---
 
-## Phase 7 — Memory and context · `todo`
+## Phase 8 — Memory and context · `todo`
 
 **Scope**
 - Conversation persistence across restarts
@@ -341,7 +392,7 @@ model: the tools are no longer the limit.
 
 ---
 
-## Phase 8 — Hardening and release · `todo`
+## Phase 9 — Hardening and release · `todo`
 
 **Scope**
 - Error handling and recovery everywhere
