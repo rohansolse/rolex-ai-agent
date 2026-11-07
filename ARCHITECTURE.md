@@ -312,6 +312,24 @@ Three details that are not obvious:
   It is reached through `ctypes`, so this adds no dependency, and it needs
   Accessibility permission — which is checked before clicking, because
   posting an event without it is dropped in silence.
+- **Each listed thing says where it sits and what it is.** A line reads
+  `12. [list/item] Rohan Solse` or `34. [conversation/item] Rohan Solse`:
+  the same name, in a sidebar and inside the open conversation, which a
+  name alone cannot tell apart. The regions are landmark-based (`#pane-side`
+  or `aside` is a list, `#main` is a conversation, and so on) rather than
+  named after any one site.
+- **A listing marks what is new since the last one.** A click usually
+  changes the page, and "what appeared?" is the next question. Matched on
+  the label, not the number, because numbers shift as things appear, and
+  remembered per page, or listing a second page marks all of it new. Both
+  ideas are borrowed from `browser-use`, which solved this before we did.
+- **Duplicates are keyed on region *and* words.** Keyed on words alone, the
+  two "Rohan Solse" entries collapse into one and the region can never tell
+  them apart — which would have left the whole idea doing nothing. Listing
+  and locating share the key, so a number means one thing.
+- **A label the model hands back is compared after stripping.** It passes
+  back what the line said, numbers, region and `*new` included; compared
+  literally, every check fails and the tool is unusable.
 - **Numbers beat names on a busy page.** "Rohan Solse" appears both in
   WhatsApp's chat list and inside the open conversation, and guessing picks
   the wrong one. `page_buttons` numbers what it lists and `click_item` takes

@@ -168,10 +168,66 @@ def page_buttons() -> str:
     numbers the model can look first and then say exactly which.
     """
     _require_chrome()
-    found = _javascript(_LIST_CLICKABLE)
-    if not found:
-        return "Nothing clickable was found on this page."
-    return f"Clickable on this page (click_item takes the number):\n{found}"
+    raw = _javascript(_LIST_CLICKABLE)
+
+    # One round trip: a second call for the title could straddle a tab
+    # change and head the listing with a different page's name.
+    try:
+        found = json.loads(raw or "{}")
+    except json.JSONDecodeError as exc:
+        raise ToolError("could not read what is on this page") from exc
+
+    where = str(found.get("page") or "this page")
+    listing = str(found.get("items") or "")
+
+    if not listing:
+        _remember(where, [])
+        return f"Nothing clickable was found on {where}."
+
+    lines = listing.splitlines()
+    marked = _mark_new(where, lines)
+    _remember(where, lines)
+
+    return f"Clickable on {where} (click_item takes the number):\n" + "\n".join(marked)
+
+
+#: The last listing, keyed by the page it came from, so a later one can say
+#: what is new. A click usually changes the page, and "what appeared?" is
+#: the question that follows. Keyed by page because otherwise listing a
+#: second page marks every one of its items as new.
+#:
+#: None means nothing has been listed for that page yet, which is not the
+#: same as having listed it and found nothing.
+_PREVIOUS: dict[str, list[str]] = {}
+
+
+def _label_of(line: str) -> str:
+    """A listed line without its number, which changes as things appear."""
+    _, _, rest = line.partition(". ")
+    return rest.strip()
+
+
+def _mark_new(page: str, lines: list[str]) -> list[str]:
+    """The same lines, with a star against anything that was not there before."""
+    previous = _PREVIOUS.get(page)
+    if previous is None:
+        return lines
+
+    before = {_label_of(line) for line in previous}
+    return [f"{line}  *new" if _label_of(line) not in before else line for line in lines]
+
+
+def _remember(page: str, lines: list[str]) -> None:
+    _PREVIOUS[page] = lines
+
+
+def forget_listings() -> None:
+    """Drop what has been listed.
+
+    For tests, which would otherwise leak into each other and see stray
+    *new markers depending on the order they ran in.
+    """
+    _PREVIOUS.clear()
 
 
 #: Shared by listing and clicking, so the two can never disagree about what
@@ -195,6 +251,32 @@ _CLICKABLE_JS = """
   const labelOf = (node) =>
     (node.innerText || node.value || node.getAttribute('aria-label') || '')
       .replace(/\\s+/g, ' ').trim();
+
+  // Where on the page a thing sits. "Rohan Solse" appears both in a chat
+  // list and inside the open conversation, and a name alone cannot say
+  // which was meant. Naming the region lets the model, and the user
+  // reading the list, tell them apart.
+  const regionOf = (node) => {
+    if (node.closest('[role=dialog], dialog')) return 'dialog';
+    if (node.closest('#pane-side, [role=complementary], aside')) return 'list';
+    if (node.closest('#main, main, [role=main]')) return 'conversation';
+    if (node.closest('header, [role=banner]')) return 'header';
+    if (node.closest('nav, [role=navigation]')) return 'nav';
+    return 'page';
+  };
+
+  // What kind of thing it is, in words a person would use.
+  const kindOf = (node) => {
+    const role = (node.getAttribute('role') || '').toLowerCase();
+    if (role === 'listitem' || role === 'row') return 'item';
+    if (role === 'link' || node.tagName === 'A') return 'link';
+    // Only input[type=submit] is ever listed, and calling it a field makes
+    // the model try to type into it.
+    if (node.tagName === 'INPUT') return 'button';
+    return 'button';
+  };
+
+  const describe = (node) => regionOf(node) + '/' + kindOf(node);
 
   // Where on the screen a node sits, so a real click can be sent to it.
   //
@@ -235,12 +317,17 @@ _LIST_CLICKABLE = (
   for (const node of document.querySelectorAll(SELECTOR)) {
     if (!visible(node)) continue;
     const label = labelOf(node).slice(0, 80);
-    if (!label || seen.has(label)) continue;
-    seen.add(label);
-    out.push((out.length + 1) + '. ' + label);
+    const where = describe(node);
+    // Keyed on region as well as words: the same name in a sidebar and in
+    // the open conversation are two different things, and collapsing them
+    // is exactly the ambiguity the region was added to remove.
+    const key = where + '|' + label;
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    out.push((out.length + 1) + '. [' + where + '] ' + label);
     if (out.length >= LIMIT) break;
   }
-  return out.join('\\n');
+  return JSON.stringify({page: document.title || location.host, items: out.join('\\n')});
 })()
 """
 )
@@ -343,8 +430,11 @@ def click_item(number: int, expected: str = "") -> str:
     spot = _position(found, f"item {wanted}")
     label = str(spot.get("label") or "")
 
-    wanted_text = " ".join(expected.split()).casefold()
-    if wanted_text and wanted_text not in label.casefold():
+    # The listed line carries a "[region/kind]" prefix, a number, and
+    # sometimes a "*new" marker. A model passing back "what that line said"
+    # includes them, so they are stripped before comparing — otherwise
+    # every check fails and the tool becomes unusable.
+    if not _same_thing(expected, label):
         raise ToolError(
             f"item {wanted} is now {label!r}, not {expected!r}. The page has changed; "
             f"call page_buttons again and use the new number."
@@ -362,6 +452,25 @@ def _focus() -> None:
     clicked instead.
     """
     _osascript(f'tell application "{BROWSER}" to activate\ndelay {FOCUS_SETTLE}')
+
+
+def _same_thing(expected: str, label: str) -> bool:
+    """Whether a label the caller remembered still names this item."""
+    wanted = _bare(expected)
+    return not wanted or wanted in _bare(label)
+
+
+def _bare(line: str) -> str:
+    """A listed line stripped of its number, region and "new" marker."""
+    text = line.strip()
+    number, dot, rest = text.partition(". ")
+    if dot and number.strip().isdigit():
+        text = rest
+    if text.startswith("["):
+        _, closed, rest = text.partition("] ")
+        if closed:
+            text = rest
+    return " ".join(text.removesuffix("*new").split()).casefold().strip()
 
 
 def _position(found: str, what: str) -> dict[str, Any]:
@@ -389,9 +498,10 @@ _LOCATE_NTH = (
   for (const node of document.querySelectorAll(SELECTOR)) {
     if (!visible(node)) continue;
     const label = labelOf(node).slice(0, 80);
-    if (!label || seen.has(label)) continue;
-    seen.add(label);
-    out.push([node, label]);
+    const key = describe(node) + '|' + label;
+    if (!label || seen.has(key)) continue;
+    seen.add(key);
+    out.push([node, '[' + describe(node) + '] ' + label]);
     if (out.length >= LIMIT) break;
   }
   const chosen = out[__INDEX__];

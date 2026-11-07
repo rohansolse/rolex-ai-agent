@@ -265,7 +265,9 @@ says so rather than reporting success.
 On a simple page this works well. On a busy one like WhatsApp Web there can
 be hundreds of clickable things, and text alone is ambiguous — "Rohan Solse"
 appears both in the chat list and inside the open conversation. Ask for
-`page_buttons` and then click by number.
+`page_buttons` and then click by number. Each line says where the thing is —
+`[list/item]` is a row in the sidebar, `[conversation/item]` is inside the
+open chat — and anything that appeared since the last look is marked `*new`.
 
 **The model is the weak part, not the tools.** `qwen2.5:3b` will sometimes
 invent a web address instead of clicking what is already on screen, however

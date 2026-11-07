@@ -368,6 +368,21 @@ command patterns were narrowed twice: "answer my question about python" and
 "what should I reply to the email from john" were both being routed into the
 WhatsApp drafting flow.
 
+**Page listings borrow two ideas from `browser-use`.** Every clickable
+thing now says where it sits and what it is — `[list/item]` for a sidebar
+row, `[conversation/item]` for something inside the open conversation —
+which is exactly the distinction that made "Rohan Solse" ambiguous. And a
+listing marks what appeared since the last one, because a click changes the
+page and "what is new?" is the question that follows.
+
+Review caught the new listing quietly doing nothing: duplicates were still
+keyed on the words alone, so the two "Rohan Solse" entries collapsed into
+one and the region prefix could never distinguish them. Also fixed: the
+label a model hands back carries the number, the region and any `*new`
+marker, and was being compared literally; `*new` was remembered process-wide
+rather than per page; and `input[type=submit]` was described as a field, so
+the model would try to type into a Send button.
+
 **Nothing is sent.** The draft lands in the message box and stops. Reading it
 before it goes is the user's job and the whole safety of the feature.
 

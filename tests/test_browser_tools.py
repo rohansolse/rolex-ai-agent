@@ -57,6 +57,10 @@ def clicks(monkeypatch: pytest.MonkeyPatch) -> list[tuple[float, float]]:
 
 @pytest.fixture
 def chrome(monkeypatch: pytest.MonkeyPatch, clicks: list[tuple[float, float]]) -> FakeRun:
+    # Listings are remembered between calls so a later one can say what is
+    # new. Left alone, that leaks between tests and a stray *new appears
+    # depending on the order they ran in.
+    browser.forget_listings()
     fake = FakeRun()
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/osascript")
     monkeypatch.setattr("subprocess.run", fake)
@@ -108,14 +112,17 @@ def test_a_page_with_no_text_says_so(chrome: FakeRun) -> None:
 
 
 def test_page_buttons_lists_what_was_found(chrome: FakeRun) -> None:
-    chrome.answers = ["true", "- MBRJ self group\n- Send"]
+    chrome.answers = [
+        "true",
+        page_list("1. [list/item] MBRJ self group\n2. [page/button] Send", "WhatsApp"),
+    ]
     listed = browser.page_buttons()
     assert "MBRJ self group" in listed
     assert "Send" in listed
 
 
 def test_page_buttons_says_so_when_there_is_nothing(chrome: FakeRun) -> None:
-    chrome.answers = ["true", ""]
+    chrome.answers = ["true", page_list("")]
     assert "Nothing clickable" in browser.page_buttons()
 
 
@@ -130,6 +137,11 @@ def test_reading_never_asks_permission() -> None:
 
 def spot(label: str = "MBRJ self group", x: int = 100, y: int = 200) -> str:
     return json.dumps({"x": x, "y": y, "label": label})
+
+
+def page_list(items: str, page: str = "A Page") -> str:
+    """What the listing script returns: the page's name and its items."""
+    return json.dumps({"page": page, "items": items})
 
 
 def test_clicking_sends_the_wanted_text(chrome: FakeRun, clicks: list[tuple[float, float]]) -> None:
@@ -324,9 +336,9 @@ def test_an_exact_label_is_preferred_over_a_longer_one(
 def test_listing_and_clicking_judge_visibility_the_same_way(chrome: FakeRun) -> None:
     """A closed menu keeps its size while being hidden, so a non-zero box is
     not enough. The two must agree, or rolex offers what it cannot click."""
-    chrome.answers = ["true", "- a"]
+    chrome.answers = ["true", page_list("1. [list/item] a")]
     browser.page_buttons()
-    listing = chrome.javascript[-1]
+    listing = chrome.javascript[0]
 
     chrome.scripts.clear()
     chrome.answers = ["true", "", spot("a")]
@@ -371,7 +383,7 @@ def test_the_listing_is_numbered(chrome: FakeRun) -> None:
     """Text alone is ambiguous: asked to click "Rohan Solse" on WhatsApp
     Web, those words appear both in the chat list and inside the open
     conversation. Numbers let the model look first and then say which."""
-    chrome.answers = ["true", "1. Home Sweet Home\n2. MBRJ | Self"]
+    chrome.answers = ["true", page_list("1. Home Sweet Home\n2. MBRJ | Self", "WhatsApp")]
     listed = browser.page_buttons()
     assert "click_item" in listed
     assert "2. MBRJ | Self" in listed
@@ -450,9 +462,9 @@ def test_clicking_waits_for_chrome_to_come_forward(chrome: FakeRun) -> None:
 def test_listing_and_locating_share_one_limit(chrome: FakeRun) -> None:
     """Without the same cap, click_item(41) clicks something the user was
     never shown."""
-    chrome.answers = ["true", "1. a"]
+    chrome.answers = ["true", page_list("1. [list/item] a")]
     browser.page_buttons()
-    listing = chrome.javascript[-1]
+    listing = chrome.javascript[0]
 
     chrome.scripts.clear()
     chrome.answers = ["true", "", spot()]
@@ -559,3 +571,153 @@ def test_duplicate_whatsapp_contacts_stop_before_selecting(monkeypatch: pytest.M
     monkeypatch.setattr(chat_page, "_javascript", lambda _: next(results))
     with pytest.raises(ToolError, match="Multiple chats"):
         chat_page.open_whatsapp_chat("Asha")
+
+
+# --- saying where each thing is -------------------------------------------
+
+
+def test_each_item_says_where_it_sits(chrome: FakeRun) -> None:
+    """ "Rohan Solse" appears in the chat list and inside the open
+    conversation. A name alone cannot say which was meant."""
+    chrome.answers = ["true", page_list("1. [list/item] Rohan Solse", "WhatsApp")]
+    listed = browser.page_buttons()
+    assert "[list/item] Rohan Solse" in listed
+
+
+def test_the_regions_are_named_in_the_script(chrome: FakeRun) -> None:
+    chrome.answers = ["true", page_list("1. [list/item] a", "WhatsApp")]
+    browser.page_buttons()
+    script = chrome.javascript[0]
+    for region in ("dialog", "list", "conversation", "header", "nav"):
+        assert f"'{region}'" in script
+
+
+def test_the_page_is_named(chrome: FakeRun) -> None:
+    chrome.answers = ["true", page_list("1. [page/button] Send", "WhatsApp")]
+    assert "WhatsApp" in browser.page_buttons()
+
+
+# --- saying what is new ---------------------------------------------------
+
+
+def test_the_first_listing_marks_nothing_as_new(chrome: FakeRun) -> None:
+    chrome.answers = ["true", page_list("1. [list/item] a\n2. [list/item] b")]
+    assert "*new" not in browser.page_buttons()
+
+
+def test_what_appeared_since_last_time_is_marked(chrome: FakeRun) -> None:
+    """A click usually changes the page, and "what appeared?" is the next
+    question."""
+    chrome.answers = ["true", page_list("1. [list/item] a")]
+    browser.page_buttons()
+
+    chrome.answers = ["true", page_list("1. [list/item] a\n2. [page/button] Send")]
+    listed = browser.page_buttons()
+
+    assert "Send  *new" in listed
+    assert "] a\n" in listed or listed.rstrip().endswith("] a")
+
+
+def test_a_renumbered_item_is_not_called_new(chrome: FakeRun) -> None:
+    """Numbers shift as things appear; the label is what identifies a thing."""
+    chrome.answers = ["true", page_list("1. [list/item] b")]
+    browser.page_buttons()
+
+    chrome.answers = ["true", page_list("1. [page/button] Back\n2. [list/item] b")]
+    listed = browser.page_buttons()
+
+    assert "] b" in listed
+    assert "b  *new" not in listed
+
+
+@pytest.mark.parametrize(
+    "remembered",
+    [
+        "22. [list/item] MBRJ | Self  *new",
+        "[list/item] MBRJ | Self",
+        "MBRJ | Self",
+        "22. MBRJ | Self",
+    ],
+)
+def test_a_line_copied_from_the_listing_is_accepted(
+    chrome: FakeRun, clicks: list[tuple[float, float]], remembered: str
+) -> None:
+    """A model passing back "what that line said" includes the number, the
+    region and any *new marker. Compared literally, every check failed."""
+    chrome.answers = ["true", "", spot("[list/item] MBRJ | Self 12:09 am")]
+    browser.click_item(22, expected=remembered)
+    assert clicks
+
+
+def test_a_different_item_is_still_refused(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "", spot("[list/item] Rohan Solse")]
+    with pytest.raises(ToolError, match="page has changed"):
+        browser.click_item(22, expected="22. [list/item] MBRJ | Self")
+
+
+def test_the_same_name_in_two_regions_is_listed_twice(chrome: FakeRun) -> None:
+    """Collapsing them is exactly the ambiguity the region was added to
+    remove: "Rohan Solse" is both a chat in the sidebar and a line inside
+    the open conversation."""
+    chrome.answers = ["true", page_list("1. [list/item] a", "A Page")]
+    browser.page_buttons()
+    script = chrome.javascript[0]
+    assert "describe(node) + '|' + label" in script or "where + '|' + label" in script
+
+
+def test_locating_keys_on_the_region_too(chrome: FakeRun) -> None:
+    """Listing and locating must agree, or a number means two things."""
+    chrome.answers = ["true", "", spot()]
+    browser.click_item(1)
+    assert "describe(node) + '|' + label" in chrome.javascript[-1]
+
+
+def test_a_submit_input_is_called_a_button(chrome: FakeRun) -> None:
+    """Only input[type=submit] is ever listed; calling it a field makes the
+    model try to type into it."""
+    chrome.answers = ["true", page_list("1. [page/button] Send")]
+    browser.page_buttons()
+    script = chrome.javascript[0]
+    assert "'field'" not in script
+
+
+def test_a_second_page_does_not_mark_everything_new(chrome: FakeRun) -> None:
+    """Remembered without a page, listing another one made every item look
+    as if it had just appeared."""
+    chrome.answers = ["true", page_list("1. [list/item] a", "Page A")]
+    browser.page_buttons()
+
+    chrome.answers = ["true", page_list("1. [list/item] x", "Page B")]
+    assert "*new" not in browser.page_buttons()
+
+
+def test_going_back_to_a_page_remembers_it(chrome: FakeRun) -> None:
+    chrome.answers = ["true", page_list("1. [list/item] a", "Page A")]
+    browser.page_buttons()
+    chrome.answers = ["true", page_list("1. [list/item] x", "Page B")]
+    browser.page_buttons()
+
+    chrome.answers = ["true", page_list("1. [list/item] a\n2. [page/button] b", "Page A")]
+    listed = browser.page_buttons()
+
+    assert "b  *new" in listed
+    assert "a  *new" not in listed
+
+
+def test_having_listed_nothing_is_not_the_same_as_never_listing(
+    chrome: FakeRun,
+) -> None:
+    """A page still loading lists nothing; what turns up next is new."""
+    chrome.answers = ["true", page_list("", "Slow Page")]
+    browser.page_buttons()
+
+    chrome.answers = ["true", page_list("1. [page/button] now here", "Slow Page")]
+    assert "*new" in browser.page_buttons()
+
+
+def test_the_heading_and_the_items_come_from_one_call(chrome: FakeRun) -> None:
+    """A second call for the title could straddle a tab change and head the
+    listing with a different page's name."""
+    chrome.answers = ["true", page_list("1. [page/button] Send", "WhatsApp")]
+    browser.page_buttons()
+    assert len(chrome.javascript) == 1
