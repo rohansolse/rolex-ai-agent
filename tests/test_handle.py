@@ -443,3 +443,110 @@ def test_every_started_step_is_finished(
     ended = [e.name for e in events if isinstance(e, (ToolFinished, ToolRefused))]
     for name in started:
         assert name in ended, f"{name} was started and never finished"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "yes pleas send it on whatapp",
+        "type it there and send it",
+    ],
+)
+def test_generated_message_can_be_sent_from_conversation(
+    chat: dict[str, object],
+    said: str,
+) -> None:
+    history = [
+        Message("user", "can you give me happy diwali msg in better way with details msg"),
+        Message(
+            "assistant",
+            "Here is your message:\n\n---\nHappy Diwali! Price Rs 2,500.\n---\nReview it.",
+        ),
+    ]
+    confirmations: list[tuple[str, str]] = []
+
+    def approve(about: str, text: str) -> bool:
+        confirmations.append((about, text))
+        return True
+
+    match = recognised(said)
+    assert match is not None
+    events = list(carry_out(match, said, FakeProvider(), Config(), approve, history))
+    assert chat["sent"] == [("testing ai", "Happy Diwali! Price Rs 2,500.")]
+    assert confirmations == [("send:testing ai", "Happy Diwali! Price Rs 2,500.")]
+    assert isinstance(events[-1], Answer)
+
+
+def test_followup_typing_opens_named_chat_and_stops_before_sending(
+    chat: dict[str, object],
+) -> None:
+    history = [
+        Message("user", "Write a Diwali message"),
+        Message("assistant", "Happy Diwali!"),
+    ]
+    said = "can you type this msg in testing ai"
+    match = recognised(said)
+    assert match is not None
+    list(carry_out(match, said, FakeProvider(), Config(), history=history))
+    assert chat["opened"] == ["testing ai"]
+    assert chat["box"] == "Happy Diwali!"
+    assert chat["sent"] == []
+
+
+def test_generated_draft_still_requires_send_confirmation(chat: dict[str, object]) -> None:
+    history = [Message("user", "Write a message"), Message("assistant", "Happy Diwali!")]
+    match = recognised("send it")
+    assert match is not None
+    list(carry_out(match, "send it", FakeProvider(), Config(), lambda *_: False, history))
+    assert chat["sent"] == []
+    assert chat["box"] == "Happy Diwali!"
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        [Message("user", "What time is it?"), Message("assistant", "It is 5pm.")],
+        [
+            Message("user", "Write a message"),
+            Message("assistant", "Happy Diwali!"),
+            Message("user", "What is Python?"),
+            Message("assistant", "A programming language."),
+        ],
+        [
+            Message("user", "Write a message"),
+            Message("assistant", "Happy Diwali!"),
+            Message("user", "send it"),
+            Message("assistant", "Sent to testing ai: Happy Diwali!"),
+        ],
+    ],
+)
+def test_send_does_not_pick_unrelated_or_already_sent_answers(
+    chat: dict[str, object],
+    history: list[Message],
+) -> None:
+    match = recognised("send it")
+    assert match is not None
+    list(carry_out(match, "send it", FakeProvider(), Config(), lambda *_: True, history))
+    assert chat["sent"] == []
+    assert chat["box"] == ""
+
+
+def test_chat_generated_greeting_followed_by_users_exact_send_request(
+    chat: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rolex.interface.chat import run_chat
+
+    lines = iter(
+        [
+            "can you give me happy diwali msg in better way with details msg",
+            "yes pleas send it on whatapp",
+            "y",
+            "exit",
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda _: next(lines))
+    provider = FakeProvider("Happy Diwali! Wishing you joy and prosperity.")
+    assert run_chat(Config(), provider=provider, tools=[]) == 0
+    assert provider.asked == 1
+    assert chat["sent"] == [("testing ai", "Happy Diwali! Wishing you joy and prosperity.")]

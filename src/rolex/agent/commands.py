@@ -113,7 +113,7 @@ COMMANDS: tuple[Command, ...] = (
         patterns=(
             # "send it", "send that", "send", "send the message" — with no
             # recipient, so it goes to the conversation already in front.
-            r"^(?:please\s+)?send(?:\s+(?:it|that|this|the\s+message|the\s+draft))?(?=$|\s)",
+            r"^(?:please\s+)?send(?:\s+(?:it|that|this|the\s+message|the\s+draft))?$",
         ),
     ),
 )
@@ -124,6 +124,37 @@ def understand(said: str) -> Match | None:
     tidied, offsets = _tidy(said)
     if not tidied:
         return None
+
+    polite = re.match(
+        r"^(?:(?:yes|ok|okay)\s+)?(?:(?:can|could|would)\s+you\s+)?"
+        r"(?:(?:please|pleas|pls)\s+)?",
+        tidied,
+    )
+    if polite:
+        tidied = tidied[polite.end() :]
+        offsets = offsets[polite.end() :]
+
+    if re.fullmatch(
+        r"(?:type|put|paste)\s+(?:it|this|that|the\s+message)"
+        r"(?:\s+there)?\s+and\s+send(?:\s+it)?",
+        tidied,
+    ):
+        return Match("send")
+    typed = re.fullmatch(
+        r"(?:type|put|paste)\s+(?:it|this|that|the)"
+        r"(?:\s+(?:msg|message|draft))?(?:\s+there)?"
+        r"(?:\s+(?:in|into|to)\s+(?P<who>.+))?",
+        tidied,
+    )
+    if typed:
+        who = _chat_name(_rest_of(said, offsets, typed.start("who"))) if typed["who"] else ""
+        return Match("type_previous", who=who)
+    if re.fullmatch(
+        r"send\s+(?:it|this|that|the\s+message|the\s+draft)"
+        r"(?:\s+on\s+(?:whatsapp|whatapp))?(?:\s+please)?",
+        tidied,
+    ):
+        return Match("send")
 
     for command in COMMANDS:
         for pattern in command.patterns:

@@ -216,3 +216,39 @@ def test_sending_what_is_typed_to_someone_named(said: str) -> None:
 def test_tell_me_is_a_question_not_a_message(said: str) -> None:
     match = understand(said)
     assert match is None or match.name != "send_to"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "yes pleas send it on whatapp",
+        "yes please send it on WhatsApp",
+        "can you send it",
+        "type it there and send it",
+    ],
+)
+def test_natural_followup_sending_is_routed(said: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == "send"
+    assert match.rest == ""
+
+
+def test_named_type_followup_keeps_the_recipient() -> None:
+    match = understand("can you type this msg in Testing AI")
+    assert match is not None
+    assert match.name == "type_previous"
+    assert match.who == "Testing AI"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "send it but do not actually send anything",
+        "type this Python expression",
+        "what does send it mean",
+    ],
+)
+def test_unrelated_or_qualified_followups_are_not_sent(said: str) -> None:
+    match = understand(said)
+    assert match is None or match.name not in {"send", "send_to", "type_previous"}

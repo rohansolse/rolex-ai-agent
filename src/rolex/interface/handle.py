@@ -6,6 +6,7 @@ the user, and because both `rolex chat` and `rolex listen` need the same
 behaviour.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import replace
 
@@ -51,8 +52,10 @@ def carry_out(
         yield from _remember(_open_chat(match), said, history)
         return
 
-    if match.name in {"send", "send_to"}:
-        yield from _remember(_send(match, approve), said, history)
+    if match.name in {"send", "send_to", "type_previous"}:
+        yield from _remember(
+            _send(match, approve, history, send_after=match.name != "type_previous"), said, history
+        )
         return
 
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
@@ -78,7 +81,13 @@ def _open_chat(match: Match) -> Iterator[Event]:
     yield Answer(done)
 
 
-def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
+def _send(
+    match: Match,
+    approve: Approve | None,
+    history: list[Message] | None = None,
+    *,
+    send_after: bool = True,
+) -> Iterator[Event]:
     """Put a message in the box and, once the user agrees, send it.
 
     Sending is the one thing rolex does that cannot be undone: a moment
@@ -94,19 +103,30 @@ def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
 
         step = "put_in_message_box"
 
-        if match.rest:
+        text = match.rest
+        if not text and (not send_after or not message_box_text().strip()):
+            text = _conversation_draft(history)
+            if not text and not send_after:
+                yield Answer("I could not identify a drafted message. Ask me to write one first.")
+                return
+
+        if text:
             # Asked about, like everywhere else: the box may hold something
             # the user started writing, and filling it types over the lot.
             existing = message_box_text().strip()
-            if existing and (approve is None or not approve(existing, match.rest)):
+            if existing and (approve is None or not approve(existing, text)):
                 yield ToolRefused("put_in_message_box", "the box already has something")
                 yield Answer(
                     f"Not done. The message box already has: {existing}\n\n"
                     f"Clear it, or ask again once it is empty."
                 )
                 return
-            yield ToolStarted("put_in_message_box", {"text": match.rest})
-            yield ToolFinished("put_in_message_box", put_in_message_box(match.rest))
+            yield ToolStarted("put_in_message_box", {"text": text})
+            yield ToolFinished("put_in_message_box", put_in_message_box(text))
+
+        if not send_after:
+            yield Answer("Draft is in the message box. It has not been sent.")
+            return
 
         waiting = message_box_text().strip()
         if not waiting:
@@ -138,6 +158,42 @@ def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
 
     yield ToolFinished("send_message", done)
     yield Answer(done)
+
+
+_DRAFT_REQUEST = re.compile(
+    r"\b(?:write|compose|draft|give|make)\b.*"
+    r"\b(?:msg|message|greeting|wish|wishes)\b",
+    re.IGNORECASE,
+)
+
+
+def _conversation_draft(history: list[Message] | None) -> str:
+    """Find a response to an explicit writing request, preserving its exact words."""
+    recent = (history or [])[-12:]
+    for index in range(len(recent) - 2, -1, -1):
+        request, response = recent[index : index + 2]
+        if request.role != "user":
+            continue
+        if _DRAFT_REQUEST.search(request.content):
+            if response.role != "assistant" or response.tool_calls:
+                return ""
+            if any(
+                message.role == "user"
+                and not re.search(r"\b(?:send|type|put|paste)\b", message.content, re.IGNORECASE)
+                for message in recent[index + 2 :]
+            ):
+                return ""
+            if any(
+                message.role == "assistant"
+                and message.content.startswith(("Sent to ", "Draft is in the message box"))
+                for message in recent[index + 2 :]
+            ):
+                return ""
+            # Common presentation wrapper from the model: introduction, divider,
+            # message, divider, closing advice. Only remove explicit dividers.
+            blocks = re.split(r"(?m)^\s*---+\s*$", response.content)
+            return (blocks[1] if len(blocks) == 3 else response.content).strip()
+    return ""
 
 
 def _remember(events: Iterator[Event], said: str, history: list[Message] | None) -> Iterator[Event]:
