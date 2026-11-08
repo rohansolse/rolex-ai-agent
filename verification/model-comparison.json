@@ -1,0 +1,3162 @@
+{
+  "method": "One sequential first-response generation per case; no browser/tools executed",
+  "intent_settings": "Production schema/prompt; temperature 0, context 2048, output 256",
+  "tool_settings": "Production prompt/all tool schemas; context 4096, output 256",
+  "tool_temperature": 0.2,
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "ollama": {
+    "version": "0.40.14"
+  },
+  "limitations": "Small synthetic sample; no live UI or speech evaluation; no retry",
+  "models": [
+    {
+      "model": "granite4:3b",
+      "cases": [
+        {
+          "kind": "intent",
+          "name": "count-en",
+          "prompt": "How many tabs are open?",
+          "expected": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              }
+            ],
+            "question": "How many tabs are open?"
+          },
+          "validated": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 4.476,
+          "load_duration": 2030560917,
+          "prompt_eval_count": 371,
+          "eval_count": 39,
+          "eval_duration": 1116768000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:12.255934+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-mr",
+          "prompt": "आणखी तीन टॅब उघड.",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "3"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 1.152,
+          "load_duration": 599667,
+          "prompt_eval_count": 389,
+          "eval_count": 35,
+          "eval_duration": 990754000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:13.893437+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-roman",
+          "prompt": "char navin tabs open kara",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 4,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              },
+              {
+                "action": "open_tabs",
+                "value": "1"
+              },
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "navin"
+              },
+              {
+                "action": "draft",
+                "value": "Please send the invoice"
+              }
+            ],
+            "question": ""
+          },
+          "error": "I could not preserve the exact message text. Please quote the draft.",
+          "seconds": 3.587,
+          "load_duration": 459500,
+          "prompt_eval_count": 372,
+          "eval_count": 110,
+          "eval_duration": 3434409000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:17.583125+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "focus-hi",
+          "prompt": "WhatsApp पर जाओ।",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 1.1,
+          "load_duration": 6515542,
+          "prompt_eval_count": 374,
+          "eval_count": 33,
+          "eval_duration": 957312000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:18.720727+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "select-mr",
+          "prompt": "त्यात Leena Kulkarni चॅट उघड.",
+          "expected": [
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Leena Kulkarni",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Leena Kulkarni"
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 1.775,
+          "load_duration": 2238959,
+          "prompt_eval_count": 389,
+          "eval_count": 57,
+          "eval_duration": 1642604000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:20.566903+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "draft-mr",
+          "prompt": "त्याला लिही, 'मी १७ मिनिटांत येतो.\nकृपया थांबा.'",
+          "expected": [
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "त्याला"
+              },
+              {
+                "action": "draft",
+                "value": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 3.532,
+          "load_duration": 1834875,
+          "prompt_eval_count": 414,
+          "eval_count": 110,
+          "eval_duration": 3281833000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:24.094891+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-mixed",
+          "prompt": "WhatsApp kholo, Dev Mehta ka chat open karo aur type karo 'Please send ₹3,460 tomorrow'",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Dev Mehta",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Please send ₹3,460 tomorrow"
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Dev Mehta"
+              },
+              {
+                "action": "draft",
+                "value": "Please send ₹3,460 tomorrow"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Dev Mehta",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Please send ₹3,460 tomorrow"
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 2.408,
+          "load_duration": 5417417,
+          "prompt_eval_count": 391,
+          "eval_count": 78,
+          "eval_duration": 2242226000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:26.527262+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-en",
+          "prompt": "Go to WhatsApp, select Tara Bose conversation and write \"Don't send it before 21:15.\"",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Tara Bose"
+              },
+              {
+                "action": "draft",
+                "value": "Don't send it before 21:15."
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 2.429,
+          "load_duration": 1522708,
+          "prompt_eval_count": 386,
+          "eval_count": 80,
+          "eval_duration": 2296510000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:28.984706+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "send-mr",
+          "prompt": "पाठव.",
+          "expected": [
+            {
+              "action": "send",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "पाठव"
+              },
+              {
+                "action": "draft",
+                "value": "पाठव"
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 2.389,
+          "load_duration": 1447416,
+          "prompt_eval_count": 371,
+          "eval_count": 79,
+          "eval_duration": 2295705000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:31.37785+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "conversation",
+          "prompt": "Why is the sky blue?",
+          "expected": [
+            {
+              "action": "chat",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "3"
+              },
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "AskMeAnything"
+              },
+              {
+                "action": "draft",
+                "value": "Why is the sky blue?"
+              }
+            ],
+            "question": "Why is the sky blue?"
+          },
+          "error": "The plan added tabs absent from your instruction. Please rephrase.",
+          "seconds": 2.956,
+          "load_duration": 3339750,
+          "prompt_eval_count": 371,
+          "eval_count": 101,
+          "eval_duration": 2869437000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:34.530812+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "missing-count",
+          "prompt": "Add a few more tabs",
+          "expected": [
+            {
+              "action": "clarify",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "3"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 1.11,
+          "load_duration": 5090208,
+          "prompt_eval_count": 370,
+          "eval_count": 35,
+          "eval_duration": 1014502000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2337118616,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:35.654545+05:30",
+                "size_vram": 2337118616,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "time-mr",
+          "prompt": "आत्ता किती वाजले आहेत?",
+          "expected": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 7.557,
+          "load_duration": 824687459,
+          "prompt_eval_count": 1789,
+          "eval_count": 16,
+          "eval_duration": 471616000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2506987928,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:43.238951+05:30",
+                "size_vram": 2506987928,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "battery-roman",
+          "prompt": "battery kiti baki ahe?",
+          "expected": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 0.679,
+          "load_duration": 9046792,
+          "prompt_eval_count": 1775,
+          "eval_count": 16,
+          "eval_duration": 443567000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2506987928,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:43.950095+05:30",
+                "size_vram": 2506987928,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "disk-hi",
+          "prompt": "डिस्क में कितनी खाली जगह है?",
+          "expected": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "calls": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {
+                  "": {}
+                }
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 0.95,
+          "load_duration": 953875,
+          "prompt_eval_count": 1795,
+          "eval_count": 24,
+          "eval_duration": 707265000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2506987928,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:44.917395+05:30",
+                "size_vram": 2506987928,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "app-en",
+          "prompt": "Open Safari.",
+          "expected": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 0.907,
+          "load_duration": 927583,
+          "prompt_eval_count": 1770,
+          "eval_count": 28,
+          "eval_duration": 835604000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2506987928,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:45.842034+05:30",
+                "size_vram": 2506987928,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "greeting",
+          "prompt": "Hello!",
+          "expected": [],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [],
+          "answer": "Hello! How can I help you today?",
+          "seconds": 0.351,
+          "load_duration": 788333,
+          "prompt_eval_count": 1769,
+          "eval_count": 10,
+          "eval_duration": 281006000,
+          "runtime": {
+            "models": [
+              {
+                "name": "granite4:3b",
+                "model": "granite4:3b",
+                "size": 2506987928,
+                "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "granite",
+                  "families": [
+                    "granite"
+                  ],
+                  "parameter_size": "3.4B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:02:46.219037+05:30",
+                "size_vram": 2506987928,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        }
+      ],
+      "details": {
+        "parent_model": "/Users/runner/.ollama/models/blobs/sha256-6c02683809a8dc4eb05c78d44bc63bcd707703b078998fa58829c858ab337bb0",
+        "format": "gguf",
+        "family": "granite",
+        "families": [
+          "granite"
+        ],
+        "parameter_size": "3.4B",
+        "quantization_level": "Q4_K_M"
+      },
+      "capabilities": [
+        "completion",
+        "tools"
+      ],
+      "raw_passed": 9,
+      "validated_passed": 9,
+      "total": 16,
+      "median_seconds": 2.082,
+      "installed_model": {
+        "name": "granite4:3b",
+        "model": "granite4:3b",
+        "modified_at": "2026-11-09T01:56:43.54+05:30",
+        "size": 2099521385,
+        "digest": "89962fcc75239ac434cdebceb6b7e0669397f92eaef9c487774b718bc36a3e5f",
+        "details": {
+          "parent_model": "/Users/runner/.ollama/models/blobs/sha256-6c02683809a8dc4eb05c78d44bc63bcd707703b078998fa58829c858ab337bb0",
+          "format": "gguf",
+          "family": "granite",
+          "families": [
+            "granite"
+          ],
+          "parameter_size": "3.4B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 131072,
+          "embedding_length": 2560,
+          "runner": "ggml"
+        },
+        "capabilities": [
+          "completion",
+          "tools"
+        ]
+      }
+    },
+    {
+      "model": "qwen3:4b",
+      "cases": [
+        {
+          "kind": "intent",
+          "name": "count-en",
+          "prompt": "How many tabs are open?",
+          "expected": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              }
+            ],
+            "question": "How many tabs are open?"
+          },
+          "validated": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 15.437,
+          "load_duration": 12574494625,
+          "prompt_eval_count": 371,
+          "eval_count": 41,
+          "eval_duration": 1430997000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:31.891176+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-mr",
+          "prompt": "आणखी तीन टॅब उघड.",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "3"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 1.329,
+          "load_duration": 557208,
+          "prompt_eval_count": 383,
+          "eval_count": 35,
+          "eval_duration": 1180762000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:33.226537+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-roman",
+          "prompt": "char navin tabs open kara",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 4,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              },
+              {
+                "action": "open_tabs",
+                "value": "2"
+              },
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 2.471,
+          "load_duration": 589167,
+          "prompt_eval_count": 372,
+          "eval_count": 70,
+          "eval_duration": 2366048000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:35.868247+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "focus-hi",
+          "prompt": "WhatsApp पर जाओ।",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              },
+              {
+                "action": "open_tabs",
+                "value": "1"
+              },
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "error": "A tab query was not requested. Please specify what to inspect.",
+          "seconds": 2.433,
+          "load_duration": 575667,
+          "prompt_eval_count": 373,
+          "eval_count": 70,
+          "eval_duration": 2325948000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:38.305458+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "select-mr",
+          "prompt": "त्यात Leena Kulkarni चॅट उघड.",
+          "expected": [
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Leena Kulkarni",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Leena Kulkarni"
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 2.116,
+          "load_duration": 506875,
+          "prompt_eval_count": 386,
+          "eval_count": 58,
+          "eval_duration": 1964963000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:40.426713+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "draft-mr",
+          "prompt": "त्याला लिही, 'मी १७ मिनिटांत येतो.\nकृपया थांबा.'",
+          "expected": [
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "त्याला"
+              },
+              {
+                "action": "draft",
+                "value": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 3.946,
+          "load_duration": 537958,
+          "prompt_eval_count": 412,
+          "eval_count": 109,
+          "eval_duration": 3678657000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:44.377647+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-mixed",
+          "prompt": "WhatsApp kholo, Dev Mehta ka chat open karo aur type karo 'Please send ₹3,460 tomorrow'",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Dev Mehta",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Please send ₹3,460 tomorrow"
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "1"
+              },
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "dev mehta"
+              },
+              {
+                "action": "draft",
+                "value": "Please send ₹3,460 tomorrow"
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added tabs absent from your instruction. Please rephrase.",
+          "seconds": 3.617,
+          "load_duration": 898500,
+          "prompt_eval_count": 393,
+          "eval_count": 100,
+          "eval_duration": 3363503000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:48.000155+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-en",
+          "prompt": "Go to WhatsApp, select Tara Bose conversation and write \"Don't send it before 21:15.\"",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Tara Bose"
+              },
+              {
+                "action": "draft",
+                "value": "Don't send it before 21:15."
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 2.933,
+          "load_duration": 606250,
+          "prompt_eval_count": 388,
+          "eval_count": 83,
+          "eval_duration": 2782618000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:50.937778+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "send-mr",
+          "prompt": "पाठव.",
+          "expected": [
+            {
+              "action": "send",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 1.259,
+          "load_duration": 572333,
+          "prompt_eval_count": 370,
+          "eval_count": 34,
+          "eval_duration": 1152484000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:52.201545+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "conversation",
+          "prompt": "Why is the sky blue?",
+          "expected": [
+            {
+              "action": "chat",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "clarify",
+                "value": "Why is the sky blue? (This is a science question about atmospheric scattering. Do you want me to explain the science behind why the sky appears blue?)"
+              }
+            ],
+            "question": "Why is the sky blue?"
+          },
+          "validated": [
+            {
+              "action": "clarify",
+              "count": 0,
+              "recipient": "",
+              "text": "Why is the sky blue?"
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 2.524,
+          "load_duration": 1440375,
+          "prompt_eval_count": 371,
+          "eval_count": 72,
+          "eval_duration": 2421270000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:54.73116+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "missing-count",
+          "prompt": "Add a few more tabs",
+          "expected": [
+            {
+              "action": "clarify",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              },
+              {
+                "action": "open_tabs",
+                "value": "3"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 1.863,
+          "load_duration": 515708,
+          "prompt_eval_count": 370,
+          "eval_count": 52,
+          "eval_duration": 1759202000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 2876160081,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:03:56.59948+05:30",
+                "size_vram": 2876160081,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "time-mr",
+          "prompt": "आत्ता किती वाजले आहेत?",
+          "expected": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "Okay, the user is asking \"आत्ता किती वाजले आहेत?\" which translates to \"What time is it now?\" in Marathi.\n\nI need to check the current time. The available tools include get_time, which gets the current date and time. Since the user is asking for the time, I should call get_time.\n\nWait, the tools list says: {\"type\": \"function\", \"function\": {get_time Get the current date and time. Use only when asked what time or what day it is. {object <nil> <nil> [] {}}}}.\n\nSo the function get_time doesn't require any arguments. I'll call that. The response will be the current time.\n\nI should return a tool call for get_time with no arguments.\n</think>\n\n",
+          "seconds": 31.821,
+          "load_duration": 14894211458,
+          "prompt_eval_count": 1721,
+          "eval_count": 186,
+          "eval_duration": 9584329000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 3181631242,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:04:28.413085+05:30",
+                "size_vram": 3181631242,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "battery-roman",
+          "prompt": "battery kiti baki ahe?",
+          "expected": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "Okay, the user is asking \"battery kiti baki ahe?\" which translates to \"How much battery is left?\" in Marathi.\n\nI need to check the battery level of their Mac. The function provided for this is battery_level. It doesn't require any arguments. So I should call battery_level.\n\nWait, the user is using their Mac, and the assistant runs locally on the user's Mac. Since the assistant has access to the battery_level function, I can directly use that.\n\nNo other tools are needed here. Just call battery_level.\n</think>\n\n",
+          "seconds": 7.632,
+          "load_duration": 6749334,
+          "prompt_eval_count": 1708,
+          "eval_count": 130,
+          "eval_duration": 7437915000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 3181631242,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:04:36.079106+05:30",
+                "size_vram": 3181631242,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "disk-hi",
+          "prompt": "डिस्क में कितनी खाली जगह है?",
+          "expected": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "Okay, the user is asking in Hindi: \"डिस्क में कितनी खाली जगह है?\" which translates to \"How much free space is on the disk?\"\n\nI need to check the disk space on their Mac. The tool provided for this is `disk_space`. The function `disk_space` checks how much free disk space the Mac has. Since the user is asking about free space, I should call this function.\n\nWait, the user is using their Mac, and the assistant runs locally. The tools list includes `disk_space` as a function that returns free disk space. So I don't need to open a web page or anything else. Just call `disk_space`.\n\nLet me make sure. The user's question is straightforward, so the correct tool is `disk_space`. No other tools are needed here. So I'll generate the tool call for `disk_space`.\n</think>\n\n",
+          "seconds": 14.743,
+          "load_duration": 6194084,
+          "prompt_eval_count": 1726,
+          "eval_count": 211,
+          "eval_duration": 14267106000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 3181631242,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:04:50.829217+05:30",
+                "size_vram": 3181631242,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "app-en",
+          "prompt": "Open Safari.",
+          "expected": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "answer": "Okay, the user wants me to open Safari. Let me check the tools available. There's the open_app function which takes a name. The name here is Safari. So I should call open_app with \"Safari\" as the argument. Let me make sure I'm not confusing it with another app. The tools list shows open_app for Mac applications. Yes, Safari is a Mac app. So the correct function call is open_app with name \"Safari\".\n</think>\n\n",
+          "seconds": 9.566,
+          "load_duration": 1219875,
+          "prompt_eval_count": 1703,
+          "eval_count": 117,
+          "eval_duration": 9315853000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 3181631242,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:05:00.403147+05:30",
+                "size_vram": 3181631242,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "greeting",
+          "prompt": "Hello!",
+          "expected": [],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [],
+          "answer": "Okay, the user said \"Hello!\" so I need to respond appropriately. Let me check what I know.\n\nFirst, my name is Rolex, and I'm an assistant running on their Mac. I should introduce myself clearly. The user might be testing if I'm working or just greeting.\n\nSince they're saying hello, I should reply in simple English as per instructions. The response should be short and direct. Maybe something like \"Hello! I'm Rolex, your local Mac assistant. How can I help you today?\"\n\nWait, the user wrote in Marathi/Hindi/English mix, but the response should be in simple English. The example says to reply in simple English. So I'll stick to that.\n\nNo tools are needed here because it's a greeting. Just a friendly response. Let me make sure not to add any extra info. Keep it to one or two sentences.\n\nYes, that's it. No function calls required here. Just a straightforward reply.\n</think>\n\nHello! I'm Rolex, your local Mac assistant. How can I help you today?",
+          "seconds": 21.114,
+          "load_duration": 1580708,
+          "prompt_eval_count": 1702,
+          "eval_count": 216,
+          "eval_duration": 20809627000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3:4b",
+                "model": "qwen3:4b",
+                "size": 3181631242,
+                "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen3",
+                  "families": [
+                    "qwen3"
+                  ],
+                  "parameter_size": "4.0B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:05:21.528455+05:30",
+                "size_vram": 3181631242,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        }
+      ],
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen3",
+        "families": [
+          "qwen3"
+        ],
+        "parameter_size": "4.0B",
+        "quantization_level": "Q4_K_M"
+      },
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ],
+      "raw_passed": 8,
+      "validated_passed": 8,
+      "total": 16,
+      "median_seconds": 3.275,
+      "installed_model": {
+        "name": "qwen3:4b",
+        "model": "qwen3:4b",
+        "modified_at": "2026-11-09T01:58:07.39+05:30",
+        "size": 2497293931,
+        "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen3",
+          "families": [
+            "qwen3"
+          ],
+          "parameter_size": "4.0B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 262144,
+          "embedding_length": 2560,
+          "runner": "ggml"
+        },
+        "capabilities": [
+          "completion",
+          "tools",
+          "thinking"
+        ]
+      }
+    },
+    {
+      "model": "qwen3.5:4b-q4_K_M",
+      "cases": [
+        {
+          "kind": "intent",
+          "name": "count-en",
+          "prompt": "How many tabs are open?",
+          "expected": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "count_tabs",
+                "value": ""
+              }
+            ],
+            "question": "How many tabs are open?"
+          },
+          "validated": [
+            {
+              "action": "count_tabs",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 10.56,
+          "load_duration": 6844689875,
+          "prompt_eval_count": 374,
+          "eval_count": 48,
+          "eval_duration": 2047456000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:02.451978+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-mr",
+          "prompt": "आणखी तीन टॅब उघड.",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "3"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 3,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 3.424,
+          "load_duration": 8825417,
+          "prompt_eval_count": 380,
+          "eval_count": 44,
+          "eval_duration": 1868700000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:05.923931+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "add-roman",
+          "prompt": "char navin tabs open kara",
+          "expected": [
+            {
+              "action": "open_tabs",
+              "count": 4,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "1"
+              },
+              {
+                "action": "select_chat",
+                "value": "navin"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 1,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "navin",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 4.307,
+          "load_duration": 1269208,
+          "prompt_eval_count": 374,
+          "eval_count": 67,
+          "eval_duration": 2771058000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:10.250035+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "focus-hi",
+          "prompt": "WhatsApp पर जाओ।",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 3.29,
+          "load_duration": 784666,
+          "prompt_eval_count": 373,
+          "eval_count": 42,
+          "eval_duration": 1761717000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:13.569494+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "select-mr",
+          "prompt": "त्यात Leena Kulkarni चॅट उघड.",
+          "expected": [
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Leena Kulkarni",
+              "text": ""
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "select_chat",
+                "value": "Leena Kulkarni"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Leena Kulkarni",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 3.669,
+          "load_duration": 765625,
+          "prompt_eval_count": 383,
+          "eval_count": 49,
+          "eval_duration": 2101585999,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:17.243628+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "draft-mr",
+          "prompt": "त्याला लिही, 'मी १७ मिनिटांत येतो.\nकृपया थांबा.'",
+          "expected": [
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "त्याला"
+              },
+              {
+                "action": "draft",
+                "value": "मी १७ मिनिटांत येतो.\nकृपया थांबा."
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 6.147,
+          "load_duration": 5761625,
+          "prompt_eval_count": 396,
+          "eval_count": 109,
+          "eval_duration": 4474014000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:23.427486+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-mixed",
+          "prompt": "WhatsApp kholo, Dev Mehta ka chat open karo aur type karo 'Please send ₹3,460 tomorrow'",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Dev Mehta",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Please send ₹3,460 tomorrow"
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Dev Mehta"
+              },
+              {
+                "action": "draft",
+                "value": "Please send ₹3,460 tomorrow"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Dev Mehta",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Please send ₹3,460 tomorrow"
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 5.805,
+          "load_duration": 2264334,
+          "prompt_eval_count": 396,
+          "eval_count": 97,
+          "eval_duration": 4087755000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:29.243104+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "compound-en",
+          "prompt": "Go to WhatsApp, select Tara Bose conversation and write \"Don't send it before 21:15.\"",
+          "expected": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": "Tara Bose"
+              },
+              {
+                "action": "draft",
+                "value": "Don't send it before 21:15."
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "focus_whatsapp",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            },
+            {
+              "action": "select_chat",
+              "count": 0,
+              "recipient": "Tara Bose",
+              "text": ""
+            },
+            {
+              "action": "draft",
+              "count": 0,
+              "recipient": "",
+              "text": "Don't send it before 21:15."
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 5.731,
+          "load_duration": 16710792,
+          "prompt_eval_count": 391,
+          "eval_count": 99,
+          "eval_duration": 4051014000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:34.999947+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "send-mr",
+          "prompt": "पाठव.",
+          "expected": [
+            {
+              "action": "send",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "focus_whatsapp",
+                "value": ""
+              },
+              {
+                "action": "select_chat",
+                "value": ""
+              }
+            ],
+            "question": ""
+          },
+          "error": "The plan added a WhatsApp step not requested. Please rephrase.",
+          "seconds": 3.116,
+          "load_duration": 952041,
+          "prompt_eval_count": 372,
+          "eval_count": 35,
+          "eval_duration": 1561460000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:38.127416+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "conversation",
+          "prompt": "Why is the sky blue?",
+          "expected": [
+            {
+              "action": "chat",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "clarify",
+                "value": "Are you asking about the scientific reason for the sky's blue color, or do you need help with something else?"
+              }
+            ],
+            "question": "Are you asking about the scientific reason for the sky's blue color, or do you need help with something else?"
+          },
+          "validated": [
+            {
+              "action": "clarify",
+              "count": 0,
+              "recipient": "",
+              "text": "Are you asking about the scientific reason for the sky's blue color, or do you need help with something else?"
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 5.06,
+          "load_duration": 1420625,
+          "prompt_eval_count": 374,
+          "eval_count": 83,
+          "eval_duration": 3432436000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:43.238425+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "intent",
+          "name": "missing-count",
+          "prompt": "Add a few more tabs",
+          "expected": [
+            {
+              "action": "clarify",
+              "count": 0,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "raw_passed": false,
+          "validated_passed": false,
+          "raw": {
+            "steps": [
+              {
+                "action": "open_tabs",
+                "value": "1"
+              }
+            ],
+            "question": ""
+          },
+          "validated": [
+            {
+              "action": "open_tabs",
+              "count": 1,
+              "recipient": "",
+              "text": ""
+            }
+          ],
+          "unexpected_send": false,
+          "seconds": 2.722,
+          "load_duration": 16369875,
+          "prompt_eval_count": 373,
+          "eval_count": 24,
+          "eval_duration": 1119776000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3076532468,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:07:45.995665+05:30",
+                "size_vram": 3076532468,
+                "context_length": 2048,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "time-mr",
+          "prompt": "आत्ता किती वाजले आहेत?",
+          "expected": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "get_time",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 25.188,
+          "load_duration": 15532795417,
+          "prompt_eval_count": 2201,
+          "eval_count": 14,
+          "eval_duration": 572478000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3152229169,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:08:11.206025+05:30",
+                "size_vram": 3152229169,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "battery-roman",
+          "prompt": "battery kiti baki ahe?",
+          "expected": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "battery_level",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 2.794,
+          "load_duration": 18159084,
+          "prompt_eval_count": 2199,
+          "eval_count": 15,
+          "eval_duration": 638961000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3152229169,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:08:14.033898+05:30",
+                "size_vram": 3152229169,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "disk-hi",
+          "prompt": "डिस्क में कितनी खाली जगह है?",
+          "expected": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {}
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "disk_space",
+                "arguments": {}
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 2.904,
+          "load_duration": 1691292,
+          "prompt_eval_count": 2206,
+          "eval_count": 15,
+          "eval_duration": 586934000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3152229169,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:08:16.9548+05:30",
+                "size_vram": 3152229169,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "app-en",
+          "prompt": "Open Safari.",
+          "expected": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [
+            {
+              "function": {
+                "name": "open_app",
+                "arguments": {
+                  "name": "Safari"
+                }
+              }
+            }
+          ],
+          "answer": "",
+          "seconds": 3.253,
+          "load_duration": 4940333,
+          "prompt_eval_count": 2194,
+          "eval_count": 26,
+          "eval_duration": 1042819999,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3152229169,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:08:20.222603+05:30",
+                "size_vram": 3152229169,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "tools",
+          "name": "greeting",
+          "prompt": "Hello!",
+          "expected": [],
+          "raw_passed": true,
+          "validated_passed": true,
+          "calls": [],
+          "answer": "Hello! How can I help you today?",
+          "seconds": 2.6,
+          "load_duration": 1116625,
+          "prompt_eval_count": 2193,
+          "eval_count": 10,
+          "eval_duration": 383729000,
+          "runtime": {
+            "models": [
+              {
+                "name": "qwen3.5:4b-q4_K_M",
+                "model": "qwen3.5:4b-q4_K_M",
+                "size": 3152229169,
+                "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": [
+                    "qwen35"
+                  ],
+                  "parameter_size": "4.2B",
+                  "quantization_level": "Q4_K_M"
+                },
+                "expires_at": "2026-11-09T02:08:22.834595+05:30",
+                "size_vram": 3152229169,
+                "context_length": 4096,
+                "runner": "llamacpp"
+              }
+            ]
+          }
+        }
+      ],
+      "details": {
+        "parent_model": "model.gguf",
+        "format": "gguf",
+        "family": "qwen35",
+        "families": [
+          "qwen35"
+        ],
+        "parameter_size": "4.2B",
+        "quantization_level": "Q4_K_M",
+        "runner": "llamacpp"
+      },
+      "capabilities": [
+        "completion",
+        "vision",
+        "tools",
+        "thinking"
+      ],
+      "raw_passed": 11,
+      "validated_passed": 11,
+      "total": 16,
+      "median_seconds": 3.546,
+      "installed_model": {
+        "name": "qwen3.5:4b-q4_K_M",
+        "model": "qwen3.5:4b-q4_K_M",
+        "modified_at": "2026-11-09T02:01:43.35+05:30",
+        "size": 3324173934,
+        "digest": "d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04",
+        "details": {
+          "parent_model": "model.gguf",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": [
+            "qwen35"
+          ],
+          "parameter_size": "4.2B",
+          "quantization_level": "Q4_K_M",
+          "context_length": 262144,
+          "embedding_length": 2560,
+          "runner": "llamacpp"
+        },
+        "capabilities": [
+          "completion",
+          "vision",
+          "tools",
+          "thinking"
+        ]
+      }
+    }
+  ]
+}

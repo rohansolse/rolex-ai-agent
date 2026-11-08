@@ -494,7 +494,8 @@ the clipboard restored. A missing unique conversation ID prevents typing.
 Session state is not restored from persisted conversation memory. Voice device
 errors remain in `voice`; transcripts use this same processor afterward.
 
-The local installation uses `qwen3:4b`; compatibility defaults remain
+The local installation uses `qwen3.5:4b-q4_K_M` following the comparison in
+`MODEL_COMPARISON.md`; compatibility defaults remain
 `qwen2.5:3b`. Supported source-grounded commands need no model generation.
 Unknown phrases can still fail validation or time out rather than execute an
 unverified plan. See `RELIABILITY_VERIFICATION.md` for measured limits.

@@ -44,9 +44,10 @@ counts, opening additional tabs, WhatsApp selection, literal drafts and confirme
 sending. See [RELIABILITY_VERIFICATION.md](RELIABILITY_VERIFICATION.md) for the
 results, remaining live prerequisites and a short acceptance sequence.
 
-This Mac is configured locally with `ROLEX_MODEL=qwen3:4b`. To use that model on
-another installation, download it with `ollama pull qwen3:4b` and set the same
-variable in `.env`. A larger model alone does not verify browser actions.
+This Mac is configured locally with `ROLEX_MODEL=qwen3.5:4b-q4_K_M`, selected
+after a [local comparison](MODEL_COMPARISON.md). To use it on another installation,
+download it with `ollama pull qwen3.5:4b-q4_K_M` and set the same variable in
+`.env`. A larger model alone does not verify browser actions.
 For multilingual voice, download `make whisper-model WHISPER_MODEL=ggml-base.bin`,
 set `ROLEX_WHISPER_MODEL` to that file and `ROLEX_TRANSCRIBE_LANGUAGE=auto`.
 

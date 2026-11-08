@@ -2,6 +2,10 @@
 
 Verification date: 8 November 2026. Live messaging acceptance remains pending.
 
+Update, 9 November: the local model was subsequently changed from `qwen3:4b` to
+`qwen3.5:4b-q4_K_M` after [measured comparison](MODEL_COMPARISON.md).
+The results below preserve the original verification context.
+
 ## Root causes and changes
 
 The small model described actions without tools, reused stale counts and sometimes
