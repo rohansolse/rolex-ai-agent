@@ -895,3 +895,20 @@ def test_chrome_is_brought_forward_before_clicking(
     chat_page.open_whatsapp_chat("a")
 
     assert focused == [True]
+
+
+def test_a_new_whatsapp_tab_does_not_reuse_an_existing_tab(chrome: FakeRun) -> None:
+    from rolex.tools import chat_page
+
+    assert chat_page.open_whatsapp(new_tab=True) == "Opened WhatsApp Web in a new Chrome tab."
+    script = chrome.scripts[-1]
+    assert "make new tab" in script
+    assert "https://web.whatsapp.com/" in script
+    assert "repeat with" not in script
+
+
+def test_opening_whatsapp_still_reuses_a_tab_by_default(chrome: FakeRun) -> None:
+    from rolex.tools import chat_page
+
+    assert chat_page.open_whatsapp() == "Opened WhatsApp Web in Chrome."
+    assert "repeat with w in windows" in chrome.scripts[-1]

@@ -550,3 +550,38 @@ def test_chat_generated_greeting_followed_by_users_exact_send_request(
     assert run_chat(Config(), provider=provider, tools=[]) == 0
     assert provider.asked == 1
     assert chat["sent"] == [("testing ai", "Happy Diwali! Wishing you joy and prosperity.")]
+
+
+@pytest.mark.parametrize(
+    "said, recipient",
+    [
+        ("can you say hi in that chat", "testing ai"),
+        ("can you say hi in whatsapp chat of rohan solse", "rohan solse"),
+    ],
+)
+def test_say_hi_in_whatsapp_uses_confirmation_and_send_flow(
+    chat: dict[str, object],
+    said: str,
+    recipient: str,
+) -> None:
+    confirmations: list[tuple[str, str]] = []
+
+    def approve(about: str, text: str) -> bool:
+        confirmations.append((about, text))
+        return True
+
+    match = recognised(said)
+    assert match is not None
+    list(carry_out(match, said, FakeProvider(), Config(), approve))
+    assert confirmations == [(f"send:{recipient}", "hi")]
+    assert chat["sent"] == [(recipient, "hi")]
+
+
+def test_say_hi_in_chat_is_not_sent_without_confirmation(chat: dict[str, object]) -> None:
+    match = recognised("can you say hi in that chat")
+    assert match is not None
+    list(
+        carry_out(match, "can you say hi in that chat", FakeProvider(), Config(), lambda *_: False)
+    )
+    assert chat["box"] == "hi"
+    assert chat["sent"] == []

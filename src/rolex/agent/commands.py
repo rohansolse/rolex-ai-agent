@@ -134,6 +134,28 @@ def understand(said: str) -> Match | None:
         tidied = tidied[polite.end() :]
         offsets = offsets[polite.end() :]
 
+    original = said[offsets[0] :].strip() if offsets else ""
+    spoken_message = re.fullmatch(
+        r"say\s+(?P<text>.+?)\s+in\s+(?:the\s+)?(?:whatsapp|whatapp)\s+"
+        r"chat\s+(?:of|with)\s+(?P<who>.+?)\s*[.!?]*",
+        original,
+        re.IGNORECASE,
+    )
+    if spoken_message:
+        return Match(
+            "send_to",
+            rest=spoken_message["text"].strip(),
+            who=_chat_name(spoken_message["who"]),
+        )
+    current_message = re.fullmatch(
+        r"say\s+(?P<text>.+?)\s+in\s+(?:this|that|the)\s+"
+        r"(?:(?:whatsapp|whatapp)\s+)?(?:chat|group)\s*[.!?]*",
+        original,
+        re.IGNORECASE,
+    )
+    if current_message:
+        return Match("send", rest=current_message["text"].strip())
+
     if re.fullmatch(
         r"(?:type|put|paste)\s+(?:it|this|that|the\s+message)"
         r"(?:\s+there)?\s+and\s+send(?:\s+it)?",
@@ -164,6 +186,10 @@ def understand(said: str) -> Match | None:
             rest = _rest_of(said, offsets, found.end()) if command.takes_rest else ""
             tidied_rest = _tidy_rest(rest)
             if command.name == "open_chat":
+                if re.search(
+                    r"\b(?:new|another|first|second|third|last)\s+(?:tab|window)\b", tidied
+                ):
+                    continue
                 tidied_rest = _chat_name(tidied_rest)
                 if not tidied_rest:
                     continue

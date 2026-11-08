@@ -252,3 +252,51 @@ def test_named_type_followup_keeps_the_recipient() -> None:
 def test_unrelated_or_qualified_followups_are_not_sent(said: str) -> None:
     match = understand(said)
     assert match is None or match.name not in {"send", "send_to", "type_previous"}
+
+
+@pytest.mark.parametrize(
+    "said, who, text",
+    [
+        ("can you say hi in that chat", "", "hi"),
+        ("say Hi! in this chat", "", "Hi!"),
+        ("can you say hi in whatsapp chat of rohan solse", "rohan solse", "hi"),
+        (
+            "please say Happy Diwali! in the WhatsApp chat with Rohan Solse",
+            "Rohan Solse",
+            "Happy Diwali!",
+        ),
+        ("say The price is Rs 2,500. in that chat", "", "The price is Rs 2,500."),
+    ],
+)
+def test_saying_a_message_in_a_chat_is_a_send_request(said: str, who: str, text: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == ("send_to" if who else "send")
+    assert match.who == who
+    assert match.rest == text
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "can you say hi",
+        "say hi in French",
+        "can you say hi in that chat without sending",
+    ],
+)
+def test_saying_hi_without_a_chat_send_target_is_conversation(said: str) -> None:
+    assert understand(said) is None
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "please open new tab in whatapp chat",
+        "open a new tab in WhatsApp chat",
+        "can you open another tab in WhatsApp",
+        "open the first tab in Chrome chat",
+    ],
+)
+def test_browser_tabs_are_not_chat_names(said: str) -> None:
+    match = understand(said)
+    assert match is None or match.name != "open_chat"

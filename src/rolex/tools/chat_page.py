@@ -253,10 +253,29 @@ _READ_BOX = """
 
 
 @register(
-    description="Open WhatsApp Web in Chrome. Reuse its tab when available.", safety="mutating"
+    description=(
+        "Open WhatsApp Web in Chrome. Reuse its tab by default. "
+        "Set new_tab=true when asked to open a new WhatsApp tab."
+    ),
+    safety="mutating",
 )
-def open_whatsapp() -> str:
+def open_whatsapp(new_tab: bool = False) -> str:
+    """Open WhatsApp, optionally in a fresh tab.
+
+    Args:
+        new_tab: Open a new tab even if WhatsApp is already open.
+    """
     from rolex.tools.browser import _osascript
+
+    if new_tab:
+        _osascript("""
+tell application "Google Chrome"
+    activate
+    if (count of windows) is 0 then make new window
+    make new tab at end of tabs of front window with properties {URL:"https://web.whatsapp.com/"}
+end tell
+""")
+        return "Opened WhatsApp Web in a new Chrome tab."
 
     _osascript("""
 tell application "Google Chrome"
