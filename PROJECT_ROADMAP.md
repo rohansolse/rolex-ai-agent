@@ -409,7 +409,7 @@ would have wiped a half-written message with no prompt.
 stops. Sending happens only when the user asks for it and then confirms what
 and to whom.
 
-## Phase 7 — Gemini fallback and provider switching · `in review`
+## Phase 7 — Gemini fallback and provider switching · `done`
 
 **Scope**
 - `rolex.llm.gemini` — free-tier provider behind the same protocol
@@ -426,7 +426,10 @@ Implementation is available through `GeminiProvider` and an explicitly enabled
 Tool calls and results are translated through the existing provider protocol.
 Quota and authentication failures have actionable errors and no automatic retries.
 Mocked tests cover request conversion, parsing, provider selection and failures.
-Live Gemini verification and the fixed-command accuracy comparison remain pending.
+Live verification completed on 8 November 2026 with gemini-3.1-flash-lite.
+Local, cloud and forced-fallback runs each scored 7/7 on the fixed command set.
+A live chat tool round completed with local inference unavailable.
+See [Phase 7 verification](PHASE_7_VERIFICATION.md) for methodology and limitations.
 
 ## Phase 8 — Memory and context · `todo`
 

@@ -70,7 +70,7 @@ class Config:
     gemini_api_key: str | None = None
     """Free-tier Google API key. Only needed when ``provider`` is ``gemini``."""
 
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.1-flash-lite"
     """Cloud model used for Gemini and local fallback."""
 
     gemini_fallback: bool = False

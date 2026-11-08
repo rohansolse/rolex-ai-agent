@@ -76,7 +76,7 @@ def test_gemini_complete_and_single_chunk_stream() -> None:
     assert provider.is_available()
     assert provider.complete([Message("user", "hi")]).content == "Hello"
     assert list(provider.stream([Message("user", "hi")])) == ["Hello"]
-    assert transport.urls[-1].endswith("/models/gemini-2.5-flash:generateContent")
+    assert transport.urls[-1].endswith("/models/gemini-3.1-flash-lite:generateContent")
     assert "test" not in transport.urls[-1]
     assert "test" not in repr(provider)
 
@@ -204,3 +204,57 @@ def test_fallback_prompt_does_not_claim_offline_execution() -> None:
     from rolex.interface.chat import system_prompt
 
     assert "no internet" not in system_prompt(Config(gemini_fallback=True))
+
+
+def test_chat_completes_a_tool_round_when_ollama_is_offline(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from typing import Any
+
+    from rolex.interface.chat import run_chat
+    from rolex.tools.base import Tool
+
+    class CloudTransport(FakeTransport):
+        def post_json(self, url: str, body: dict[str, Any], *, timeout: float) -> dict[str, Any]:
+            self.posted.append(body)
+            parts = (
+                [{"functionCall": {"name": "get_token", "args": {}}}]
+                if len(self.posted) == 1
+                else [{"text": "Token is TEST-42."}]
+            )
+            return {"candidates": [{"content": {"parts": parts}, "finishReason": "STOP"}]}
+
+    cloud = CloudTransport()
+    local = OllamaProvider(Config(), FakeTransport(fail_with=ProviderError("offline")))
+    config = Config(gemini_api_key="test", gemini_fallback=True)
+    provider = FallbackProvider(local, GeminiProvider(config, cloud))
+    lines = iter(["Please get my token.", "exit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(lines))
+    token = Tool(name="get_token", description="Get my token", run=lambda _: "TEST-42")
+
+    assert run_chat(config, provider=provider, tools=[token]) == 0
+    assert "Token is TEST-42." in capsys.readouterr().out
+    assert len(cloud.posted) == 2
+    result = cloud.posted[1]["contents"][-1]["parts"][0]["functionResponse"]
+    assert result == {"name": "get_token", "response": {"result": "TEST-42"}}
+
+
+def test_signed_parts_survive_reply_history_and_replay() -> None:
+    provider = GeminiProvider(Config())
+    parts = [
+        {
+            "functionCall": {"name": "get_time", "args": {}},
+            "thoughtSignature": "opaque-signature",
+        }
+    ]
+    reply = provider.parse_reply({"candidates": [{"content": {"parts": parts}}]})
+    body = provider.build_body(
+        [
+            Message("user", "time?"),
+            reply.as_message(),
+            Message.tool_result("get_time", "5pm"),
+        ],
+        None,
+    )
+    assert body["contents"][1]["parts"] == parts
+    assert "provider_data" not in reply.as_message().as_dict()

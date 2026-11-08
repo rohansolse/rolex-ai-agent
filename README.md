@@ -317,7 +317,7 @@ Set these values in your local `.env` to use Gemini directly:
 ```dotenv
 ROLEX_PROVIDER=gemini
 GEMINI_API_KEY=your-key
-ROLEX_GEMINI_MODEL=gemini-2.5-flash
+ROLEX_GEMINI_MODEL=gemini-3.1-flash-lite
 ```
 
 Then run `make doctor` and `make chat` or `make listen`. Gemini uses
@@ -339,3 +339,17 @@ so a cloud answer cannot be appended to an incomplete local answer.
 API availability, quotas and billing depend on the Google account and model.
 See [Google function calling](https://ai.google.dev/gemini-api/docs/function-calling)
 and [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).
+
+
+Repeat the fixed-command provider comparison with:
+
+```bash
+uv run python -m rolex.interface.benchmark --provider all
+```
+
+Use `--provider local`, `gemini` or `fallback` for one backend. The fallback
+benchmark directs local requests to an unreachable localhost port to exercise
+cloud failover. The benchmark uses synthetic prompts and never runs tools.
+It reports per-command scores and latency as JSON, and exits nonzero for
+unavailable providers, request errors or mismatched answers.
+See [Phase 7 verification](PHASE_7_VERIFICATION.md) for recorded results.

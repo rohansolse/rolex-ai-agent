@@ -93,6 +93,8 @@ class GeminiProvider:
                     {"functionCall": {"name": call.name, "args": call.arguments}}
                     for call in message.tool_calls
                 )
+            if message.role == "assistant" and "gemini_parts" in message.provider_data:
+                parts = message.provider_data["gemini_parts"]
             if parts:
                 role = "model" if message.role == "assistant" else "user"
                 if contents and contents[-1]["role"] == role:
@@ -150,4 +152,9 @@ class GeminiProvider:
                 raise ValueError("no answer")
         except (KeyError, IndexError, TypeError, ValueError, AttributeError) as exc:
             raise ProviderError(f"{self.name}: blocked, incomplete or malformed response") from exc
-        return Reply("".join(text), tuple(calls), self.config.gemini_model)
+        return Reply(
+            "".join(text),
+            tuple(calls),
+            self.config.gemini_model,
+            provider_data={"gemini_parts": parts},
+        )

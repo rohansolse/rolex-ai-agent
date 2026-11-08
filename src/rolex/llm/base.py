@@ -40,6 +40,8 @@ class Message:
     name: str | None = None
     """Which tool produced this. Only meaningful on a ``tool`` message."""
 
+    provider_data: dict[str, Any] = field(default_factory=dict)
+
     def as_dict(self) -> dict[str, Any]:
         """The shape most chat APIs expect."""
         payload: dict[str, Any] = {"role": self.role, "content": self.content}
@@ -77,6 +79,8 @@ class Reply:
     tool_calls: tuple[ToolCall, ...] = ()
     model: str = ""
 
+    provider_data: dict[str, Any] = field(default_factory=dict)
+
     @property
     def wants_tool(self) -> bool:
         """Whether the model asked to run something rather than just answer."""
@@ -84,7 +88,12 @@ class Reply:
 
     def as_message(self) -> Message:
         """This reply as a conversation turn, to send back with the next request."""
-        return Message(role="assistant", content=self.content, tool_calls=self.tool_calls)
+        return Message(
+            role="assistant",
+            content=self.content,
+            tool_calls=self.tool_calls,
+            provider_data=self.provider_data,
+        )
 
 
 @runtime_checkable
