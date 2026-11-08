@@ -1,23 +1,22 @@
-"""Pick a provider from configuration.
-
-The one place that maps a provider name to a class. Phase 5 adds Gemini here
-and nothing else has to change.
-"""
+"""Construct the configured local or cloud backend."""
 
 from rolex.core.config import Config
 from rolex.core.errors import ConfigError
 from rolex.llm.base import LLMProvider
+from rolex.llm.fallback import FallbackProvider
+from rolex.llm.gemini import GeminiProvider
 from rolex.llm.ollama import OllamaProvider
 
 
 def build_provider(config: Config) -> LLMProvider:
-    """Return the backend `config` asks for."""
+    """Build a provider, enabling cloud fallback only when requested."""
     if config.provider == "local":
-        return OllamaProvider(config)
-
+        local = OllamaProvider(config)
+        if config.gemini_fallback:
+            config.require_gemini_key()
+            return FallbackProvider(local, GeminiProvider(config))
+        return local
     if config.provider == "gemini":
-        raise ConfigError(
-            "the gemini provider arrives in Phase 5. Set ROLEX_PROVIDER=local for now."
-        )
-
+        config.require_gemini_key()
+        return GeminiProvider(config)
     raise ConfigError(f"unknown provider {config.provider!r}")

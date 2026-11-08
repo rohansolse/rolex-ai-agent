@@ -409,7 +409,7 @@ would have wiped a half-written message with no prompt.
 stops. Sending happens only when the user asks for it and then confirms what
 and to whom.
 
-## Phase 7 — Gemini fallback and provider switching · `todo`
+## Phase 7 — Gemini fallback and provider switching · `in review`
 
 **Scope**
 - `rolex.llm.gemini` — free-tier provider behind the same protocol
@@ -420,6 +420,13 @@ and to whom.
 **Done when** rolex works with the local model off, and the switch is one config line.
 
 ---
+
+Implementation is available through `GeminiProvider` and an explicitly enabled
+`FallbackProvider`. Cloud model selection is separate from local model selection.
+Tool calls and results are translated through the existing provider protocol.
+Quota and authentication failures have actionable errors and no automatic retries.
+Mocked tests cover request conversion, parsing, provider selection and failures.
+Live Gemini verification and the fixed-command accuracy comparison remain pending.
 
 ## Phase 8 — Memory and context · `todo`
 

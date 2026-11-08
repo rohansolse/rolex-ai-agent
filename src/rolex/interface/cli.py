@@ -81,6 +81,8 @@ def _doctor(config: Config) -> int:
 
     print(f"provider     {config.provider} ({provider.name})")
     print(f"model        {config.model}")
+    if config.provider == "gemini" or config.gemini_fallback:
+        print(f"cloud model  {config.gemini_model}")
     print(f"reply model  {config.drafting_model}")
     print(f"reply in     {config.reply_language}")
     print(f"ollama host  {config.ollama_host}")

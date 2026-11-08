@@ -32,3 +32,11 @@ class UnreachableError(ProviderError):
 
 class StreamError(RolexError):
     """Continuous listening could not be started or kept running."""
+
+
+class HTTPProviderError(ProviderError):
+    """A provider returned an HTTP failure with a machine-readable status."""
+
+    def __init__(self, message: str, status: int) -> None:
+        super().__init__(message)
+        self.status = status

@@ -13,9 +13,10 @@ import json
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
+from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from rolex.core.errors import ProviderError, UnreachableError
+from rolex.core.errors import HTTPProviderError, ProviderError, UnreachableError
 
 #: Failures that happen while reading the response rather than while
 #: connecting. urllib only wraps connection-phase problems in URLError, so
@@ -44,8 +45,11 @@ class Transport(Protocol):
         ...
 
 
+@dataclass
 class UrllibTransport:
     """The real one, over :mod:`urllib`."""
+
+    headers: dict[str, str] = field(default_factory=dict, repr=False)
 
     def get_json(self, url: str, *, timeout: float) -> dict[str, Any]:
         return self._json(urllib.request.Request(url), timeout=timeout)
@@ -74,6 +78,8 @@ class UrllibTransport:
             raise UnreachableError(f"lost the connection to {url} ({exc})") from exc
 
     def _json(self, request: urllib.request.Request, *, timeout: float) -> dict[str, Any]:
+        for key, value in self.headers.items():
+            request.add_header(key, value)
         url = request.full_url
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -103,4 +109,4 @@ def _request(url: str, body: dict[str, Any]) -> urllib.request.Request:
 
 def _http_error(url: str, exc: urllib.error.HTTPError) -> ProviderError:
     detail = exc.read().decode("utf-8", errors="replace").strip()
-    return ProviderError(f"{url} returned {exc.code}: {detail}")
+    return HTTPProviderError(f"{url} returned {exc.code}: {detail}", exc.code)

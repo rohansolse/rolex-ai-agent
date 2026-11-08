@@ -65,7 +65,8 @@ def system_prompt(config: Config) -> str:
     a hosted one it would be a lie — and a model told something false about
     itself will repeat it confidently.
     """
-    parts = [IDENTITY, OFFLINE, MANNER] if config.provider == "local" else [IDENTITY, MANNER]
+    local_only = config.provider == "local" and not config.gemini_fallback
+    parts = [IDENTITY, OFFLINE, MANNER] if local_only else [IDENTITY, MANNER]
     return "\n\n".join(parts)
 
 

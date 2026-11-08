@@ -4,8 +4,7 @@ A voice-driven assistant that runs on your own Mac. You say "rolex, browser open
 kar" and it does it.
 
 It runs on a **local LLM by default** — no API key, no per-token cost, no data
-leaving the machine. A free-tier Google Gemini fallback is planned for when the
-local model is not enough.
+leaving the machine. An optional Google Gemini provider and fallback are available when local inference fails.
 
 > **Status: Phase 6.** Say "rolex, reply to this" with a client's chat open
 > and it reads the conversation, writes an answer and puts it in the message
@@ -309,3 +308,34 @@ tests/
 
 The dependency rules between those packages are enforced by
 [tests/test_architecture.py](tests/test_architecture.py), not just documented.
+
+
+## Gemini provider and fallback
+
+Set these values in your local `.env` to use Gemini directly:
+
+```dotenv
+ROLEX_PROVIDER=gemini
+GEMINI_API_KEY=your-key
+ROLEX_GEMINI_MODEL=gemini-2.5-flash
+```
+
+Then run `make doctor` and `make chat` or `make listen`. Gemini uses
+`ROLEX_GEMINI_MODEL`. Local inference uses `ROLEX_MODEL` and the optional
+`ROLEX_REPLY_MODEL`.
+
+To keep Ollama as the primary provider and use Gemini after an inference error,
+set `ROLEX_PROVIDER=local` and `ROLEX_GEMINI_FALLBACK=true` with the same
+Gemini key and model. This explicitly enables sending the conversation,
+client chat context and tool results to Google. Fallback defaults to false.
+A warning is logged when a request falls back.
+
+The cloud adapter uses Google's generateContent API and returns a whole
+answer as one chunk through the streaming interface. Rate-limit and quota
+errors stop the request with an actionable message. Requests are not retried
+automatically. A local stream that already emitted text reports its failure,
+so a cloud answer cannot be appended to an incomplete local answer.
+
+API availability, quotas and billing depend on the Google account and model.
+See [Google function calling](https://ai.google.dev/gemini-api/docs/function-calling)
+and [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).

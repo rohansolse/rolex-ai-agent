@@ -187,7 +187,7 @@ _WHO = """
     ),
     safety="destructive",
 )
-def send_message() -> str:
+def send_message(*, expected_recipient: str, expected_text: str) -> str:
     """Press Enter in the message box.
 
     ``destructive`` because it cannot be taken back: the message is on
@@ -212,6 +212,14 @@ def send_message() -> str:
         raise ToolError("could not find the message box")
 
     pointer.click(float(spot["x"]), float(spot["y"]))
+    # Focus and pointer operations can move the active page. Check after them,
+    # immediately before pressing Enter, against the user's approved snapshot.
+    if (
+        not expected_recipient
+        or open_conversation() != expected_recipient
+        or message_box_text().strip() != expected_text
+    ):
+        raise ToolError("the chat or message changed; ask to send again and confirm the details")
     _type("key code 36")
 
     time.sleep(TYPING_SETTLE)

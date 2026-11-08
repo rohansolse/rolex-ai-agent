@@ -70,6 +70,12 @@ class Config:
     gemini_api_key: str | None = None
     """Free-tier Google API key. Only needed when ``provider`` is ``gemini``."""
 
+    gemini_model: str = "gemini-2.5-flash"
+    """Cloud model used for Gemini and local fallback."""
+
+    gemini_fallback: bool = False
+    """Allow sending conversation context to Gemini when the local provider fails."""
+
     request_timeout: float = 120.0
     """Seconds to wait for a reply. A small model on CPU can be slow."""
 
@@ -299,6 +305,8 @@ def _from_toml(path: Path) -> dict[str, Any]:
 
 #: Environment variable name for each setting it can come from.
 _ENV_KEYS: dict[str, str] = {
+    "gemini_model": f"{ENV_PREFIX}GEMINI_MODEL",
+    "gemini_fallback": f"{ENV_PREFIX}GEMINI_FALLBACK",
     "provider": f"{ENV_PREFIX}PROVIDER",
     "model": f"{ENV_PREFIX}MODEL",
     "log_level": f"{ENV_PREFIX}LOG_LEVEL",
@@ -353,7 +361,7 @@ def _build(values: dict[str, Any]) -> Config:
             coerced[field.name] = _as_threads(field.name, raw)
         elif field.name == "reply_language":
             coerced[field.name] = _as_choice(field.name, raw, REPLY_LANGUAGES)
-        elif field.name in {"allow_destructive", "speak", "stream"}:
+        elif field.name in {"allow_destructive", "speak", "stream", "gemini_fallback"}:
             coerced[field.name] = _as_bool(field.name, raw)
         elif field.name == "whisper_model":
             coerced[field.name] = Path(raw).expanduser()

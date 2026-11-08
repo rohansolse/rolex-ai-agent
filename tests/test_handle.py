@@ -298,7 +298,9 @@ def chat(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
         state["box"] = text
         return f"Put this in the message box, unsent, for you to check:\n{text}"
 
-    def send() -> str:
+    def send(*, expected_recipient: str, expected_text: str) -> str:
+        assert expected_recipient == state["open"]
+        assert expected_text == state["box"]
         sent = state["sent"]
         assert isinstance(sent, list)
         sent.append((state["open"], state["box"]))

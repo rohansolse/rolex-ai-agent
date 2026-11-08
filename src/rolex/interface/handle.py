@@ -113,7 +113,10 @@ def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
             yield Answer("There is nothing in the message box to send.")
             return
 
-        to = open_conversation() or "this chat"
+        to = open_conversation()
+        if not to:
+            yield Answer("Could not identify the recipient. Open the chat and try again.")
+            return
     except RolexError as exc:
         # Named for the step that failed, so the ToolStarted above it has a
         # matching end rather than being left open.
@@ -127,7 +130,7 @@ def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
         return
 
     try:
-        done = send_message()
+        done = send_message(expected_recipient=to, expected_text=waiting)
     except RolexError as exc:
         yield ToolFinished("send_message", str(exc), failed=True)
         yield Answer(str(exc))

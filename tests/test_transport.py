@@ -153,3 +153,21 @@ def test_bad_json_mid_stream_is_reported(serve: Callable[[Handler], str]) -> Non
     assert next(stream) == {"a": 1}
     with pytest.raises(ProviderError, match="bad JSON"):
         next(stream)
+
+
+@pytest.mark.parametrize("method", ["get", "post"])
+def test_credentials_are_sent_in_headers(serve: Callable[[Handler], str], method: str) -> None:
+    seen: list[str | None] = []
+
+    def handler(request: http.server.BaseHTTPRequestHandler) -> None:
+        seen.append(request.headers.get("x-goog-api-key"))
+        _send(request, 200, b"{}")
+
+    url = serve(handler)
+    transport = UrllibTransport(headers={"x-goog-api-key": "test-key"})
+    if method == "get":
+        transport.get_json(url, timeout=5)
+    else:
+        transport.post_json(url, {}, timeout=5)
+    assert seen == ["test-key"]
+    assert "test-key" not in repr(transport)
