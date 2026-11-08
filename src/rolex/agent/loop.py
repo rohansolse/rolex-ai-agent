@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from rolex.agent.consent import Policy
+from rolex.agent.intent import CommandState
 from rolex.core.errors import ProviderError, ToolError
 from rolex.llm.base import LLMProvider, Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
@@ -93,6 +94,7 @@ class Agent:
     max_rounds: int = MAX_ROUNDS
     history: list[Message] = field(default_factory=list)
 
+    command_state: CommandState = field(default_factory=CommandState)
     _by_name: dict[str, Tool] = field(init=False, default_factory=dict)
 
     def __post_init__(self) -> None:

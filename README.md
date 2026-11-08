@@ -37,6 +37,21 @@ make whisper-model                                                   # 141 MB
 
 ## Checks
 
+### Natural commands and browser verification
+
+Typed commands and voice transcripts now share an observed workflow path for tab
+counts, opening additional tabs, WhatsApp selection, literal drafts and confirmed
+sending. See [RELIABILITY_VERIFICATION.md](RELIABILITY_VERIFICATION.md) for the
+results, remaining live prerequisites and a short acceptance sequence.
+
+This Mac is configured locally with `ROLEX_MODEL=qwen3:4b`. To use that model on
+another installation, download it with `ollama pull qwen3:4b` and set the same
+variable in `.env`. A larger model alone does not verify browser actions.
+For multilingual voice, download `make whisper-model WHISPER_MODEL=ggml-base.bin`,
+set `ROLEX_WHISPER_MODEL` to that file and `ROLEX_TRANSCRIBE_LANGUAGE=auto`.
+
+### Automated checks
+
 ```bash
 make lint        # ruff: lint + format check
 make typecheck   # mypy --strict

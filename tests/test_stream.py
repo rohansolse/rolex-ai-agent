@@ -267,3 +267,11 @@ def test_closing_stops_the_stream() -> None:
     hearing, stream = ears([])
     hearing.close()
     assert stream.stopped
+
+
+def test_stream_uses_configured_language() -> None:
+    from rolex.core.config import Config
+    from rolex.voice.stream import Stream
+
+    argv = Stream(Config(transcribe_language="mr")).argv("whisper-stream")
+    assert argv[argv.index("--language") + 1] == "mr"

@@ -32,7 +32,7 @@ from rolex.interface.chat import (
     system_prompt,
     trim,
 )
-from rolex.interface.handle import carry_out, recognised
+from rolex.interface.processor import respond
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
 from rolex.tools import registered
@@ -449,10 +449,7 @@ def _respond(
     approve: Approve,
 ) -> Iterable[Event]:
     """Carry out a recognised command, or let the agent loop work it out."""
-    match = recognised(said, agent.history)
-    if match is not None:
-        return carry_out(match, said, provider, config, approve, agent.history, policy=agent.policy)
-    return agent.ask(said)
+    return respond(agent, said, provider, config, approve)
 
 
 def _greet(config: Config, voice: Speaker, *, push_to_talk: bool, streaming: bool) -> None:

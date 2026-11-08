@@ -1,5 +1,14 @@
 # rolex — Project Roadmap
 
+## Reliability follow-up — 8 November 2026
+
+Shared typed/voice workflows, observed browser state, multilingual command families,
+exact drafts, duplicate resolution and uncertain-send guards are implemented.
+Automated checks pass (871 tests). Controlled A–E results and the remaining live
+Accessibility/WhatsApp/microphone acceptance are recorded in
+[RELIABILITY_VERIFICATION.md](RELIABILITY_VERIFICATION.md). Release acceptance
+remains pending; fixture success does not establish live messaging verification.
+
 Phases ship in order. Each one is reviewed and approved before the next starts.
 A phase is done when its scope is built, its tests pass, and its docs are updated.
 

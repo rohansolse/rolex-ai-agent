@@ -157,7 +157,7 @@ class Stream:
             "--vad-thold",
             str(VAD_THRESHOLD),
             "--language",
-            "en",
+            self.config.transcribe_language,
             "--threads",
             str(self.config.threads),
         ]

@@ -154,6 +154,7 @@ def _voice_report(config: Config) -> list[tuple[str, str]]:
         ("streaming", _streaming(config)),
         ("say", _found("say", "not available on this system")),
         ("speech model", _model_state(model)),
+        ("speech language", config.transcribe_language),
         ("speaking", "on" if config.speak else "off (ROLEX_SPEAK=true to enable)"),
     ]
 

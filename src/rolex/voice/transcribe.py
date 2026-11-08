@@ -60,7 +60,7 @@ class Transcriber:
             "--no-timestamps",
             "--no-prints",
             "--language",
-            "en",
+            self.config.transcribe_language,
             # One thread fewer than the machine has, so a long transcription
             # does not make the rest of the system unusable.
             "--threads",

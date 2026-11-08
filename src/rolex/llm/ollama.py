@@ -69,6 +69,26 @@ class OllamaProvider:
         payload = self._post("/api/chat", self.build_body(messages, tools, stream=False))
         return self.parse_reply(payload)
 
+    def structured(self, messages: list[Message], schema: dict[str, Any]) -> dict[str, Any]:
+        """Generate schema-constrained data without executing tools."""
+        import json
+
+        body = self.build_body(messages, None, stream=False)
+        body["format"] = schema
+        if self.config.model.startswith("qwen3"):
+            body["think"] = False
+        body["options"]["temperature"] = 0
+        body["options"]["num_predict"] = 256
+        body["options"]["num_ctx"] = 2048
+        reply = self.parse_reply(self._post("/api/chat", body))
+        try:
+            result: object = json.loads(reply.content)
+        except json.JSONDecodeError as exc:
+            raise ProviderError("local interpretation did not return valid JSON") from exc
+        if not isinstance(result, dict):
+            raise ProviderError("local interpretation must return an object")
+        return result
+
     def stream(
         self,
         messages: list[Message],
@@ -100,6 +120,8 @@ class OllamaProvider:
             "stream": stream,
             "options": {"temperature": self.config.temperature},
         }
+        if self.config.model.startswith("qwen3"):
+            body["think"] = False
         if tools:
             body["tools"] = [
                 {

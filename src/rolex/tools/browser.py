@@ -72,6 +72,8 @@ def _explain(stderr: str) -> str:
     """Turn AppleScript's complaint into something a user can act on."""
     lowered = stderr.lower()
 
+    if "syntax error" in lowered:
+        return "Browser script compilation failed. Check the installed Rolex version."
     if "not allowed" in lowered or "apple events" in lowered or "-1743" in lowered:
         return (
             f"macOS has not been told this is allowed. Give the terminal permission under "

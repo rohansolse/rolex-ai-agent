@@ -473,6 +473,32 @@ right.
 So: one tool per question a user would ask, named as the answer to it. Prefer
 three obvious tools to one clever one.
 
+## Observed command workflows
+
+`interface.processor.respond` is the shared entry for typed input and voice
+transcripts. `agent.grounded` extracts supported multilingual command families and
+literal source slots; unfamiliar wording can use the provider's constrained JSON
+interpretation. `agent.intent` validates the complete plan before execution.
+Ordinary conversation and established tools retain the existing agent loop.
+
+`agent.workflow` executes dependent steps and retains session context: tab scope,
+selected target, unresolved contact candidates and uncertain sends. Replies for
+these workflows come from observed results. Native `tools.session` uses the
+user's existing Chrome session, pins window/tab IDs and checks conversation ID
+and exact draft before input. Duplicate contacts suspend the remaining plan.
+An explicit send requires recipient/text approval and a new outgoing message
+after the prior message anchor; an unknown outcome blocks automatic resending.
+
+Draft content is separate from control instructions and is pasted verbatim with
+the clipboard restored. A missing unique conversation ID prevents typing.
+Session state is not restored from persisted conversation memory. Voice device
+errors remain in `voice`; transcripts use this same processor afterward.
+
+The local installation uses `qwen3:4b`; compatibility defaults remain
+`qwen2.5:3b`. Supported source-grounded commands need no model generation.
+Unknown phrases can still fail validation or time out rather than execute an
+unverified plan. See `RELIABILITY_VERIFICATION.md` for measured limits.
+
 ## Coding standards
 
 - Python 3.12, managed with `uv`. Lockfile committed.

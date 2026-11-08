@@ -3,6 +3,7 @@
 import logging
 from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import Any
 
 from rolex.core.errors import ProviderError
 from rolex.llm.base import LLMProvider, Message, Reply, ToolSchema
@@ -28,6 +29,22 @@ class FallbackProvider:
         except ProviderError:
             logger.warning("Local provider failed; using configured Gemini fallback.")
             return self.secondary.complete(messages, tools)
+
+    def structured(self, messages: list[Message], schema: dict[str, Any]) -> dict[str, Any]:
+        primary = getattr(self.primary, "structured", None)
+        secondary = getattr(self.secondary, "structured", None)
+        if primary is None:
+            raise ProviderError("The primary provider does not support structured interpretation.")
+        try:
+            result = primary(messages, schema)
+        except ProviderError:
+            if secondary is None:
+                raise
+            logger.warning("Local interpretation failed; using configured Gemini fallback.")
+            result = secondary(messages, schema)
+        if not isinstance(result, dict):
+            raise ProviderError("Structured interpretation must return an object.")
+        return result
 
     def stream(
         self, messages: list[Message], tools: list[ToolSchema] | None = None

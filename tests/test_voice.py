@@ -455,3 +455,20 @@ def test_a_stalled_whisper_does_not_hang_the_loop(
 
     with pytest.raises(TranscriptionError, match="did not finish"):
         Transcriber(Config(whisper_model=model)).transcribe(Path("/x.wav"))
+
+
+def test_transcriber_uses_configured_language(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    model = tmp_path / "ggml-base.bin"
+    model.write_bytes(b"fixture model")
+    runner = FakeRun(stdout="hello")
+    monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/whisper-cli")
+    monkeypatch.setattr("subprocess.run", runner)
+    assert (
+        Transcriber(Config(whisper_model=model, transcribe_language="auto")).transcribe(
+            tmp_path / "audio.wav"
+        )
+        == "hello"
+    )
+    assert runner.argv[runner.argv.index("--language") + 1] == "auto"

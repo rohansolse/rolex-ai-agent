@@ -99,6 +99,9 @@ class Config:
     8 GB and already holds a 2 GB language model.
     """
 
+    transcribe_language: str = "en"
+    """Whisper language code. Use auto with a multilingual speech model."""
+
     transcribe_threads: int = 0
     """Threads whisper may use. 0 means one fewer than the machine has, so a
     long transcription does not make the rest of the system unusable."""
@@ -329,6 +332,7 @@ _ENV_KEYS: dict[str, str] = {
     "stream_device": f"{ENV_PREFIX}STREAM_DEVICE",
     "stream": f"{ENV_PREFIX}STREAM",
     "transcribe_threads": f"{ENV_PREFIX}TRANSCRIBE_THREADS",
+    "transcribe_language": f"{ENV_PREFIX}TRANSCRIBE_LANGUAGE",
     "listen_seconds": f"{ENV_PREFIX}LISTEN_SECONDS",
     "silence_seconds": f"{ENV_PREFIX}SILENCE_SECONDS",
     "speak": f"{ENV_PREFIX}SPEAK",
@@ -366,6 +370,8 @@ def _build(values: dict[str, Any]) -> Config:
             coerced[field.name] = Path(raw).expanduser()
         elif field.name == "request_timeout":
             coerced[field.name] = _as_positive_float(field.name, raw)
+        elif field.name == "transcribe_language":
+            coerced[field.name] = _as_choice(field.name, raw, ("en", "mr", "hi", "auto"))
         elif field.name == "transcribe_threads":
             coerced[field.name] = _as_threads(field.name, raw)
         elif field.name == "reply_language":

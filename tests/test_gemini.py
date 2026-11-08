@@ -217,9 +217,26 @@ def test_chat_completes_a_tool_round_when_ollama_is_offline(
     class CloudTransport(FakeTransport):
         def post_json(self, url: str, body: dict[str, Any], *, timeout: float) -> dict[str, Any]:
             self.posted.append(body)
+            if body.get("generationConfig", {}).get("responseMimeType") == "application/json":
+                return {
+                    "candidates": [
+                        {
+                            "finishReason": "STOP",
+                            "content": {
+                                "parts": [
+                                    {
+                                        "text": '{"steps":[{"action":"chat","count":0,'
+                                        '"recipient":"","text":""}],'
+                                        '"question":""}'
+                                    }
+                                ]
+                            },
+                        }
+                    ]
+                }
             parts = (
                 [{"functionCall": {"name": "get_token", "args": {}}}]
-                if len(self.posted) == 1
+                if len(self.posted) == 2
                 else [{"text": "Token is TEST-42."}]
             )
             return {"candidates": [{"content": {"parts": parts}, "finishReason": "STOP"}]}
@@ -234,8 +251,8 @@ def test_chat_completes_a_tool_round_when_ollama_is_offline(
 
     assert run_chat(config, provider=provider, tools=[token]) == 0
     assert "Token is TEST-42." in capsys.readouterr().out
-    assert len(cloud.posted) == 2
-    result = cloud.posted[1]["contents"][-1]["parts"][0]["functionResponse"]
+    assert len(cloud.posted) == 3
+    result = cloud.posted[2]["contents"][-1]["parts"][0]["functionResponse"]
     assert result == {"name": "get_token", "response": {"result": "TEST-42"}}
 
 

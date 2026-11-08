@@ -1,5 +1,6 @@
 """Gemini generateContent backend using the existing JSON transport."""
 
+import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -38,10 +39,28 @@ class GeminiProvider:
             return False
 
     def complete(self, messages: list[Message], tools: list[ToolSchema] | None = None) -> Reply:
+        return self._generate(self.build_body(messages, tools))
+
+    def structured(self, messages: list[Message], schema: dict[str, Any]) -> dict[str, Any]:
+        body = self.build_body(messages, None)
+        body["generationConfig"].update(
+            responseMimeType="application/json",
+            responseJsonSchema=schema,
+        )
+        reply = self._generate(body)
+        try:
+            value: object = json.loads(reply.content)
+        except json.JSONDecodeError as exc:
+            raise ProviderError("Cloud interpretation was not valid JSON.") from exc
+        if not isinstance(value, dict):
+            raise ProviderError("Cloud interpretation must be a JSON object.")
+        return value
+
+    def _generate(self, body: dict[str, Any]) -> Reply:
         try:
             payload = self._transport().post_json(
                 f"{self.url}:generateContent",
-                self.build_body(messages, tools),
+                body,
                 timeout=self.config.request_timeout,
             )
         except HTTPProviderError as exc:

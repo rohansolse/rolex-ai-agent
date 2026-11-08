@@ -1,0 +1,333 @@
+[
+  {
+    "workflow": "A",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.075,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "How many tabs are open?",
+      "Open four more tabs"
+    ],
+    "expected": "3 -> 7 tabs",
+    "observed": {
+      "tabs": 7,
+      "recipient_id": "",
+      "draft": "",
+      "writes": [],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · list_tabs()\n       ·   Front Chrome window 41: 3 tabs.\nrolex > Front Chrome window 41: 3 tabs.\n\n       · open_tabs(count=4)\n       ·   Verified front window 41: 3 → 7 tabs.\nrolex > Verified front window 41: 3 → 7 tabs.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "B",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.009,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp वर जा.",
+      "त्यात निशा शाहचं चॅट उघड.",
+      "त्याला लिही, मी १२ मिनिटांत पोहोचतो."
+    ],
+    "expected": "Nisha fixture, exact unsent Marathi draft",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "मी १२ मिनिटांत पोहोचतो.",
+      "writes": [
+        [
+          "nisha",
+          "मी १२ मिनिटांत पोहोचतो."
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\nrolex > WhatsApp Web is observed in the selected Chrome window and tab.\n\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\nrolex > Verified selected conversation: Nisha Shah.\n\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: मी १२ मिनिटांत पोहोचतो.\nrolex > Verified unsent draft in Nisha Shah:\nमी १२ मिनिटांत पोहोचतो.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "C",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.007,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Do not send ₹2,750 today'"
+    ],
+    "expected": "Nisha fixture, exact payload, zero sends",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "Do not send ₹2,750 today",
+      "writes": [
+        [
+          "nisha",
+          "Do not send ₹2,750 today"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Do not send ₹2,750 today\nrolex > Verified unsent draft in Nisha Shah:\nDo not send ₹2,750 today\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "D",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.008,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "Open WhatsApp, open Sam chat and type 'Meet at gate 9'",
+      "2",
+      "त्याला लिही, Call at 8."
+    ],
+    "expected": "Choose home fixture, draft once; manual same-name change blocks follow-up typing",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "sam-work",
+      "draft": "",
+      "writes": [
+        [
+          "sam-home",
+          "Meet at gate 9"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Recipient clarification needed\nrolex > Which conversation? Reply with one number:\n1. Sam — Work fixture\n2. Sam — Home fixture\n\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Sam.\n       · put_in_message_box()\n       ·   Verified unsent draft in Sam: Meet at gate 9\nrolex > Verified unsent draft in Sam:\nMeet at gate 9\n\n       ·   failed: The active chat or window changed. Select the intended recipient again.\nrolex > Stopped at draft: The active chat or window changed. Select the intended recipient again.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "C-paraphrase",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.007,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "Get WhatsApp in front, locate Nisha Shah's conversation, and enter 'Please send the revised invoice at 19:25'"
+    ],
+    "expected": "Alternate source-grounded wording; exact unsent draft",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "Please send the revised invoice at 19:25",
+      "writes": [
+        [
+          "nisha",
+          "Please send the revised invoice at 19:25"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Please send the revised invoice at 19:25\nrolex > Verified unsent draft in Nisha Shah:\nPlease send the revised invoice at 19:25\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "model",
+    "model": "qwen3:4b",
+    "model_generations": 1,
+    "elapsed_seconds": 41.322,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "Hello"
+    ],
+    "expected": "A real local-model greeting without browser mutation",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "",
+      "draft": "",
+      "writes": [],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\nrolex > Okay, the user said \"Hello\". I need to respond in simple English. Since I'm named rolex and I'm an assistant running on their Mac, I should introduce myself briefly.\n\nFirst, I'll check if there's a web page open in Chrome. But the user just said hello, so maybe they don't need to interact with a web page right now. My role is to be helpful.\n\nI should respond with a friendly greeting. Let me make sure to keep it short and direct as per the instructions. The user might be testing if I'm working or just starting a conversation.\n\nSo, the response would be something like: \"Hello! I'm rolex, your local assistant on your Mac. How can I help you today?\"\n\nWait, the instructions say to keep answers short and direct — a sentence or two unless more is asked for. So maybe even shorter. Let me see.\n\nThe user wrote in English here (\"Hello\"), so I'll respond in English. The previous message says to reply in simple English.\n\nYes, so the answer is: \"Hello! I'm ro: your local Mac assistant. How can I help?\"\n\nWait, the name is rolex, so maybe \"rolex\" not \"I'm ro:\". Let me correct that.\n\n\"Hello! I'm rolex, your local Mac assistant. How can I help?\"\n\nBut the instructions say to keep it short. Maybe even \"Hello! I'm rolex. How can I help you today?\".\n\nYes, that's concise. Let me go with that.\n</think>\n\nHello! I'm rolex. How can I help you today?\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "E-send",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.213,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Ready at 18:40'",
+      "पाठव."
+    ],
+    "expected": "Exactly one send for approved/submitted cases, zero otherwise",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "",
+      "writes": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ],
+      "sent": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ]
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Ready at 18:40\nrolex > Verified unsent draft in Nisha Shah:\nReady at 18:40\n\n       · to Nisha Shah: Ready at 18:40\n       · send_message()\n       ·   Verified message submitted to Nisha Shah: Ready at 18:40\nrolex > Verified message submitted to Nisha Shah:\nReady at 18:40\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "E-deny",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.007,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Ready at 18:40'",
+      "पाठव."
+    ],
+    "expected": "Exactly one send for approved/submitted cases, zero otherwise",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "Ready at 18:40",
+      "writes": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Ready at 18:40\nrolex > Verified unsent draft in Nisha Shah:\nReady at 18:40\n\n       · to Nisha Shah: Ready at 18:40\n       ·   refused: Sending was not confirmed\nrolex > Draft kept. No message was sent.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "E-cancel",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.003,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Ready at 18:40'",
+      "cancel"
+    ],
+    "expected": "Exactly one send for approved/submitted cases, zero otherwise",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "Ready at 18:40",
+      "writes": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Ready at 18:40\nrolex > Verified unsent draft in Nisha Shah:\nReady at 18:40\n\nrolex > Cancelled. No pending instruction will be resumed.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "E-lost_ack",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.003,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Ready at 18:40'",
+      "पाठव.",
+      "send it"
+    ],
+    "expected": "Exactly one send for approved/submitted cases, zero otherwise",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "",
+      "writes": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ],
+      "sent": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ]
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Ready at 18:40\nrolex > Verified unsent draft in Nisha Shah:\nReady at 18:40\n\n       · to Nisha Shah: Ready at 18:40\n       · send_message()\n       ·   failed: Acknowledgement lost\nrolex > Stopped at send: Acknowledgement lost\n\nrolex > The earlier message is now observed as submitted. No resend.\n\n",
+    "passed": true
+  },
+  {
+    "workflow": "E-unknown",
+    "model": "qwen3:4b",
+    "model_generations": 0,
+    "elapsed_seconds": 0.003,
+    "environment": "configured local provider + deterministic messaging fixture",
+    "starting_state": {
+      "count": 3
+    },
+    "input": [
+      "WhatsApp kholo, Nisha Shah ka chat open karo aur type karo 'Ready at 18:40'",
+      "पाठव.",
+      "send it"
+    ],
+    "expected": "Exactly one send for approved/submitted cases, zero otherwise",
+    "observed": {
+      "tabs": 3,
+      "recipient_id": "nisha",
+      "draft": "Ready at 18:40",
+      "writes": [
+        [
+          "nisha",
+          "Ready at 18:40"
+        ]
+      ],
+      "sent": []
+    },
+    "exit": 0,
+    "transcript": "rolex chat — ollama:qwen3:4b. Tools: none. Type 'exit' to leave.\n\n       · open_whatsapp()\n       ·   WhatsApp Web is observed in the selected Chrome window and tab.\n       · open_whatsapp_chat()\n       ·   Verified selected conversation: Nisha Shah.\n       · put_in_message_box()\n       ·   Verified unsent draft in Nisha Shah: Ready at 18:40\nrolex > Verified unsent draft in Nisha Shah:\nReady at 18:40\n\n       · to Nisha Shah: Ready at 18:40\n       · send_message()\n       ·   failed: Acknowledgement lost\nrolex > Stopped at send: Acknowledgement lost\n\n       ·   failed: An earlier send is unconfirmed. Check the chat before resending.\nrolex > Stopped at send: An earlier send is unconfirmed. Check the chat before resending.\n\n",
+    "passed": true
+  }
+]

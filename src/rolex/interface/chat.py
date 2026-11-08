@@ -13,7 +13,7 @@ from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, To
 from rolex.agent.memory import MemoryError, restore_context
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, UnreachableError
-from rolex.interface.handle import carry_out, recognised
+from rolex.interface.processor import respond
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
 from rolex.tools import registered
@@ -168,12 +168,7 @@ def _respond(agent: Agent, said: str, provider: LLMProvider, config: Config) -> 
     The few things the user says most often are rules, not judgements, and
     routing them round the model is what makes them work every time.
     """
-    match = recognised(said, agent.history)
-    if match is not None:
-        return carry_out(
-            match, said, provider, config, approve_replacing, agent.history, policy=agent.policy
-        )
-    return agent.ask(said)
+    return respond(agent, said, provider, config, approve_replacing)
 
 
 def approve_replacing(about: str, text: str) -> bool:
