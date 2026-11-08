@@ -6,7 +6,7 @@ kar" and it does it.
 It runs on a **local LLM by default** — no API key, no per-token cost, no data
 leaving the machine. An optional Google Gemini provider and fallback are available when local inference fails.
 
-> **Status: Phase 6.** Say "rolex, reply to this" with a client's chat open
+> **Status: 0.1.0 prepared for live acceptance testing.** Say "rolex, reply to this" with a client's chat open
 > and it reads the conversation, writes an answer and puts it in the message
 > box for you to check. It can also act on the page — scroll, click, type.
 > Everything — the language model, the speech recognition, the voice — runs
@@ -175,7 +175,7 @@ across repeated runs. Romanised Marathi it handles unpredictably: it
 understood "aaj kaay var ahe?" but not "kasa ahes" or "vel kiti zala", where
 it either invents a translation or answers with something copied out of its
 own instructions. That is a limit of the model's size, not of the prompt, and
-the fix is the free-tier Gemini provider in Phase 5.
+an optional Gemini provider is now available for cloud inference.
 
 ## If the repo is on an external drive
 
@@ -353,3 +353,78 @@ cloud failover. The benchmark uses synthetic prompts and never runs tools.
 It reports per-command scores and latency as JSON, and exits nonzero for
 unavailable providers, request errors or mismatched answers.
 See [Phase 7 verification](PHASE_7_VERIFICATION.md) for recorded results.
+
+## Conversation memory
+
+Enable local memory in your .env:
+
+```dotenv
+ROLEX_MEMORY=true
+```
+
+Then use `make chat`, `make listen` or `make talk`. The most recently saved
+session is restored on the next launch, including tool results and Gemini
+response signatures. Each running session has its own snapshot, so concurrent
+sessions keep independent histories.
+
+Memory defaults to off. When enabled, conversations and preferences are stored
+in `~/.local/share/rolex/memory.sqlite3`. Set `ROLEX_MEMORY_PATH` to use
+another location. This database contains conversation text. A cloud provider
+or enabled cloud fallback receives the restored context along with new requests.
+
+Save an explicit preference with:
+
+```bash
+uv run rolex remember "Use short answers."
+uv run rolex remember "My business name is Moments by RJ."
+```
+
+Preferences apply on the next chat or voice launch with memory enabled.
+Repeated identical preferences are stored once. More than 20 messages or
+roughly 12,000 characters trigger summarization of older complete exchanges.
+Recent exchanges remain intact, with a summary of up to 2,000 characters.
+If summarization fails, a bounded historical excerpt is retained. A single
+large recent exchange can exceed that soft budget, since tool requests,
+results and signed response parts are kept together. Summaries are lossy and
+may omit details.
+
+Memory database failures produce a message instead of claiming the conversation
+was saved. To start fresh while preserving old memory, choose a new
+`ROLEX_MEMORY_PATH`. Disabling memory stops loading and saving conversation
+context.
+
+## Debugging and troubleshooting
+
+Run `uv run rolex --debug chat` or `uv run rolex --debug listen` for JSON
+debug records on stderr. Each model round reports timing and outcome, and
+tool steps report start, completion, refusal or failure. Debug trace records
+omit message text, tool arguments and exception bodies.
+
+| Problem | Action |
+| --- | --- |
+| Ollama unavailable | Run `make ollama` in a separate terminal. Verify `ROLEX_MODEL` is installed. |
+| Gemini authentication or quota error | Check GEMINI_API_KEY, model access and quota. Retry after the limit resets. |
+| Microphone or recording error | Enable the terminal's microphone access in macOS Privacy & Security. Run `make doctor`. |
+| Wake word is missed | Use `make talk` and speak English after pressing Enter. |
+| Chrome cannot read the page | Enable Chrome View → Developer → Allow JavaScript from Apple Events and macOS Automation permission. |
+| Clicking or typing fails | Check Accessibility permission for the terminal running Rolex. |
+| Memory unavailable | Check ROLEX_MEMORY_PATH and file permissions, or select a new database path. Chat continues with session-only context. |
+| External-volume install fails | Use `make install` to keep the virtualenv on the internal disk. |
+| Corrupt provider output or timeout | The request reports an error. Retry the question after checking provider availability. |
+
+Recovery preserves tool consent checks. Provider failures do not automatically
+retry tool actions. A failed memory save is reported and active context remains
+bounded using the existing trimming behavior.
+
+See [the live test guide](LIVE_TEST.md) for the acceptance walkthrough.
+
+## Build
+
+```bash
+make check
+uv build
+```
+
+Python 3.12 is required for the source checkout and installed distributions.
+The 0.1.0 wheel and source archive are generated under dist/.
+The release tag should identify the reviewed commit containing these changes.

@@ -10,6 +10,7 @@ from typing import Any
 
 from rolex.agent.consent import Policy
 from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
+from rolex.agent.memory import MemoryError, restore_context
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, UnreachableError
 from rolex.interface.handle import carry_out, recognised
@@ -97,11 +98,13 @@ def run_chat(
         explain_unavailable(config, backend)
         return 1
 
+    memory = restore_context(config, backend, system_prompt(config))
+
     agent = Agent(
         provider=backend,
         tools=registered() if tools is None else tools,
         policy=Policy(ask=ask_at_terminal, allow_destructive=config.allow_destructive),
-        history=[Message("system", system_prompt(config))],
+        history=memory.history() if memory else [Message("system", system_prompt(config))],
     )
 
     names = ", ".join(tool.name for tool in agent.tools) or "none"
@@ -130,7 +133,11 @@ def run_chat(
             print("\n[interrupted]\n")
             continue
 
-        agent.history = trim(agent.history)
+        try:
+            agent.history = memory.commit(agent.history) if memory else trim(agent.history)
+        except MemoryError as exc:
+            agent.history = trim(agent.history)
+            print(f"rolex: {exc}", file=sys.stderr)
 
 
 def trim(history: list[Message]) -> list[Message]:

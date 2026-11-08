@@ -582,6 +582,7 @@ def whatsapp(
         return next(replies)
 
     monkeypatch.setattr(chat_page, "_require_chrome", lambda: None)
+    monkeypatch.setattr(chat_page, "_focus", lambda: None)
     monkeypatch.setattr(chat_page, "_javascript", run)
     monkeypatch.setattr(chat_page, "POLL", 0)
     monkeypatch.setattr("rolex.tools.pointer.click", lambda x, y: clicked.append((x, y)))
@@ -887,10 +888,10 @@ def test_chrome_is_brought_forward_before_clicking(
     from rolex.tools import chat_page
 
     focused: list[bool] = []
-    monkeypatch.setattr(chat_page, "_focus", lambda: focused.append(True))
 
     spot = json.dumps({"x": 1, "y": 2, "label": "a"})
     whatsapp(monkeypatch, ["https://web.whatsapp.com/", "ok", spot, spot, "a", ""])
+    monkeypatch.setattr(chat_page, "_focus", lambda: focused.append(True))
     chat_page.open_whatsapp_chat("a")
 
     assert focused == [True]

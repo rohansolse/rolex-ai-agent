@@ -431,7 +431,7 @@ Local, cloud and forced-fallback runs each scored 7/7 on the fixed command set.
 A live chat tool round completed with local inference unavailable.
 See [Phase 7 verification](PHASE_7_VERIFICATION.md) for methodology and limitations.
 
-## Phase 8 — Memory and context · `todo`
+## Phase 8 — Memory and context · `done`
 
 **Scope**
 - Conversation persistence across restarts
@@ -440,10 +440,39 @@ See [Phase 7 verification](PHASE_7_VERIFICATION.md) for methodology and limitati
 
 ---
 
-## Phase 9 — Hardening and release · `todo`
+Implemented local SQLite session snapshots shared by chat, listen and talk.
+Each session has a separate row. Older complete exchanges are summarized with
+the configured provider, with a bounded excerpt on provider failure.
+`rolex remember TEXT` stores explicit preferences for future sessions.
+Memory is enabled with `ROLEX_MEMORY=true`; `ROLEX_MEMORY_PATH` selects the store.
+
+Verified on 8 November 2026. `make check` passed with 756 tests, including
+chat-to-voice restart, signed tool history, separate concurrent snapshots,
+summary failures, oversized older turns, corrupt storage and consent after restore.
+A live Gemini smoke test recalled ATLAS-42 across two separate processes and
+generated a summary of synthetic historical exchanges. Summary output is lossy,
+and a single large recent exchange may exceed the soft character budget.
+
+## Phase 9 — Hardening and release · `in review`
 
 **Scope**
 - Error handling and recovery everywhere
 - Structured logs, a `--debug` trace of each loop iteration
 - Install docs, troubleshooting, a demo recording
 - Version 0.1.0 tagged
+
+
+Implementation and package preparation are complete. JSON debug traces are available
+through `--debug`. Provider parsing, invalid timeouts, file/device failures and
+unavailable memory have regression coverage. Version 0.1.0 is set in package and
+runtime metadata. The wheel and source archive build successfully, and the wheel
+entry point runs in an isolated Python 3.12 environment.
+
+[Live acceptance steps](LIVE_TEST.md) and a recorded CLI smoke demo are included.
+The user's live voice/browser/WhatsApp acceptance and the final release commit/tag
+remain pending. The tag must identify the commit containing the prepared changes.
+
+
+Final automated verification on 8 November 2026 passed Ruff, formatting, strict
+mypy and all 772 tests. Browser focus is mocked in WhatsApp unit tests, keeping
+the suite independent of a real Chrome session and macOS UI permissions.

@@ -11,12 +11,13 @@ This is the only module that imports both :mod:`rolex.llm` and
 
 import json
 import logging
+import time
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from rolex.agent.consent import Policy
-from rolex.core.errors import ToolError
+from rolex.core.errors import ProviderError, ToolError
 from rolex.llm.base import LLMProvider, Message, ToolCall, ToolSchema
 from rolex.tools.base import Tool
 
@@ -122,7 +123,27 @@ class Agent:
         nudges: list[Message] = []
 
         for round_number in range(self.max_rounds):
-            reply = self.provider.complete(self.history + turn + nudges, self.schemas)
+            started = time.monotonic()
+            log.debug(
+                "model_request",
+                extra={"round": round_number + 1, "messages": len(self.history + turn + nudges)},
+            )
+            try:
+                reply = self.provider.complete(self.history + turn + nudges, self.schemas)
+            except ProviderError as exc:
+                log.debug(
+                    "model_failed",
+                    extra={"round": round_number + 1, "error_type": type(exc).__name__},
+                )
+                raise
+            log.debug(
+                "model_reply",
+                extra={
+                    "round": round_number + 1,
+                    "outcome": "tool_calls" if reply.wants_tool else "answer",
+                    "elapsed_ms": round((time.monotonic() - started) * 1000),
+                },
+            )
 
             answered = reply.wants_tool or bool(reply.content.strip())
 
@@ -175,11 +196,12 @@ class Agent:
         if not decision.allowed:
             # Told to the model as a tool result, so it explains itself to the
             # user instead of silently doing nothing or trying again.
-            log.debug("refused %s: %s", tool.name, decision.reason)
+            log.debug("tool_refused", extra={"tool": tool.name, "outcome": "refused"})
             turn.append(Message.tool_result(tool.name, decision.reason))
             yield ToolRefused(tool.name, decision.reason)
             return
 
+        log.debug("tool_started", extra={"tool": tool.name})
         yield ToolStarted(tool.name, call.arguments)
 
         try:
@@ -193,11 +215,12 @@ class Agent:
             # as a ToolFinished event and to the model as a tool result, so a
             # log line would be the same thing said a third time, in the
             # middle of the conversation.
-            log.debug("tool %s failed: %s", tool.name, exc, exc_info=True)
+            log.debug("tool_failed", extra={"tool": tool.name, "error_type": type(exc).__name__})
             text = f"The tool '{tool.name}' failed: {exc}"
             turn.append(Message.tool_result(tool.name, text))
             yield ToolFinished(tool.name, text, failed=True)
             return
 
+        log.debug("tool_finished", extra={"tool": tool.name, "outcome": "success"})
         turn.append(Message.tool_result(tool.name, text))
         yield ToolFinished(tool.name, text)

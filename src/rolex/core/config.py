@@ -10,6 +10,7 @@ Environment wins because it is the easiest thing to change for one run, and
 because secrets belong there rather than in a committed file.
 """
 
+import math
 import os
 import tomllib
 from dataclasses import dataclass, fields
@@ -159,6 +160,12 @@ class Config:
     confirmation away from doing something irreversible.
     """
 
+    memory: bool = False
+    """Persist conversations and load saved preferences when enabled."""
+
+    memory_path: Path = Path.home() / ".local" / "share" / "rolex" / "memory.sqlite3"
+    """Local SQLite memory store, outside the source checkout."""
+
     log_level: str = "WARNING"
     """Default quiet: INFO lines land in the middle of the conversation and
     the terminal is the user's, not a log sink. ROLEX_LOG_LEVEL=DEBUG when
@@ -236,7 +243,7 @@ def _as_positive_float(name: str, raw: object) -> float:
         value = float(raw)  # type: ignore[arg-type]
     except (TypeError, ValueError) as exc:
         raise ConfigError(f"{name} must be a number, got {raw!r}") from exc
-    if value <= 0:
+    if not math.isfinite(value) or value <= 0:
         raise ConfigError(f"{name} must be positive, got {raw!r}")
     return value
 
@@ -307,6 +314,8 @@ def _from_toml(path: Path) -> dict[str, Any]:
 _ENV_KEYS: dict[str, str] = {
     "gemini_model": f"{ENV_PREFIX}GEMINI_MODEL",
     "gemini_fallback": f"{ENV_PREFIX}GEMINI_FALLBACK",
+    "memory": f"{ENV_PREFIX}MEMORY",
+    "memory_path": f"{ENV_PREFIX}MEMORY_PATH",
     "provider": f"{ENV_PREFIX}PROVIDER",
     "model": f"{ENV_PREFIX}MODEL",
     "log_level": f"{ENV_PREFIX}LOG_LEVEL",
@@ -353,7 +362,7 @@ def _build(values: dict[str, Any]) -> Config:
             if raw not in allowed:
                 raise ConfigError(f"provider must be one of {', '.join(allowed)}, got {raw!r}")
             coerced[field.name] = raw
-        elif field.name == "ollama_models_dir":
+        elif field.name in {"ollama_models_dir", "memory_path"}:
             coerced[field.name] = Path(raw).expanduser()
         elif field.name == "request_timeout":
             coerced[field.name] = _as_positive_float(field.name, raw)
@@ -361,7 +370,7 @@ def _build(values: dict[str, Any]) -> Config:
             coerced[field.name] = _as_threads(field.name, raw)
         elif field.name == "reply_language":
             coerced[field.name] = _as_choice(field.name, raw, REPLY_LANGUAGES)
-        elif field.name in {"allow_destructive", "speak", "stream", "gemini_fallback"}:
+        elif field.name in {"allow_destructive", "speak", "stream", "gemini_fallback", "memory"}:
             coerced[field.name] = _as_bool(field.name, raw)
         elif field.name == "whisper_model":
             coerced[field.name] = Path(raw).expanduser()

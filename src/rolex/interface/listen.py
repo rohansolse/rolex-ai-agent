@@ -21,6 +21,7 @@ from typing import Any, Protocol
 
 from rolex.agent.consent import Policy
 from rolex.agent.loop import Agent, Answer, Event, ToolFinished, ToolRefused, ToolStarted
+from rolex.agent.memory import Context, MemoryError, restore_context
 from rolex.agent.reply import Approve
 from rolex.core.config import Config
 from rolex.core.errors import ProviderError, RolexError, StreamError
@@ -319,6 +320,8 @@ def run_listen(
 
     voice = Speaker(config) if speaker is None else speaker
 
+    memory = restore_context(config, backend, system_prompt(config))
+
     try:
         hearing = _hearing(config, ears, push_to_talk=push_to_talk)
     except RolexError as exc:
@@ -334,7 +337,7 @@ def run_listen(
         provider=backend,
         tools=registered() if tools is None else tools,
         policy=Policy(ask=asker.ask, allow_destructive=config.allow_destructive),
-        history=[Message("system", system_prompt(config))],
+        history=memory.history() if memory else [Message("system", system_prompt(config))],
     )
 
     _greet(config, voice, push_to_talk=push_to_talk, streaming=isinstance(hearing, StreamEars))
@@ -348,6 +351,7 @@ def run_listen(
             config,
             asker.replace_message,
             push_to_talk=push_to_talk,
+            memory=memory,
         )
     finally:
         _close(hearing)
@@ -394,6 +398,7 @@ def _converse(
     approve: Approve,
     *,
     push_to_talk: bool,
+    memory: Context | None = None,
 ) -> int:
     """The listen loop itself."""
     while True:
@@ -424,7 +429,11 @@ def _converse(
 
         # Same reason as in chat: a long session would otherwise overflow the
         # context window and Ollama would drop the system prompt from the front.
-        agent.history = trim(agent.history)
+        try:
+            agent.history = memory.commit(agent.history) if memory else trim(agent.history)
+        except MemoryError as exc:
+            agent.history = trim(agent.history)
+            print(f"rolex: {exc}", file=sys.stderr)
 
         # Whatever was recorded while rolex was thinking and talking is not a
         # command — it is mostly rolex's own answer coming out of the speaker.

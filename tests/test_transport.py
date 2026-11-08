@@ -171,3 +171,18 @@ def test_credentials_are_sent_in_headers(serve: Callable[[Handler], str], method
         transport.post_json(url, {}, timeout=5)
     assert seen == ["test-key"]
     assert "test-key" not in repr(transport)
+
+
+@pytest.mark.parametrize("body", [b"[]\n", b"null\n", b"42\n", b"\xff\n"])
+def test_invalid_stream_chunks_report_provider_errors(
+    serve: Callable[[Handler], str], body: bytes
+) -> None:
+    url = serve(lambda request: _send(request, 200, body))
+    with pytest.raises(ProviderError):
+        list(UrllibTransport().post_stream(url, {}, timeout=5))
+
+
+def test_invalid_response_encoding_is_a_provider_error(serve: Callable[[Handler], str]) -> None:
+    url = serve(lambda request: _send(request, 200, b"\xff"))
+    with pytest.raises(ProviderError):
+        UrllibTransport().get_json(url, timeout=5)

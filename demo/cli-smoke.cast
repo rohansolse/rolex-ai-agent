@@ -1,0 +1,10 @@
+{"version": 2, "width": 100, "height": 30, "timestamp": 1794130871, "title": "Rolex 0.1.0 CLI smoke checks"}
+[0.0, "o", "$ rolex --version\r\n"]
+[0.499, "o", "rolex 0.1.0\r\n"]
+[0.499, "o", "exit status 0\r\n\r\n"]
+[0.499, "o", "$ rolex --help\r\n"]
+[0.579, "o", "usage: rolex <command>\r\n\r\nrolex is a voice-driven assistant that runs on a local LLM.\r\n\r\ncommands:\r\n  chat            type to rolex\r\n  listen          speak to rolex; say \"rolex\" to wake it\r\n  talk            speak to rolex, pressing Enter each time instead\r\n  remember TEXT   save a user preference for future sessions\r\n  doctor          check that everything rolex needs is in place\r\n\r\n  --debug         JSON debug traces to stderr (e.g. rolex --debug chat)\r\n  -V, --version   print the version and exit\r\n  -h, --help      print this message and exit\r\n\r\nrolex uses tools to do things. `rolex doctor` lists them. Anything that\r\nchanges the machine asks first. See PROJECT_ROADMAP.md.\r\n"]
+[0.579, "o", "exit status 0\r\n\r\n"]
+[0.579, "o", "$ rolex not-a-command\r\n"]
+[0.659, "o", "rolex: unrecognised arguments: not-a-command\r\nusage: rolex <command>\r\n\r\nrolex is a voice-driven assistant that runs on a local LLM.\r\n\r\ncommands:\r\n  chat            type to rolex\r\n  listen          speak to rolex; say \"rolex\" to wake it\r\n  talk            speak to rolex, pressing Enter each time instead\r\n  remember TEXT   save a user preference for future sessions\r\n  doctor          check that everything rolex needs is in place\r\n\r\n  --debug         JSON debug traces to stderr (e.g. rolex --debug chat)\r\n  -V, --version   print the version and exit\r\n  -h, --help      print this message and exit\r\n\r\nrolex uses tools to do things. `rolex doctor` lists them. Anything that\r\nchanges the machine asks first. See PROJECT_ROADMAP.md.\r\n"]
+[0.659, "o", "exit status 2\r\n\r\n"]

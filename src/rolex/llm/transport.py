@@ -63,11 +63,17 @@ class UrllibTransport:
         try:
             with urllib.request.urlopen(_request(url, body), timeout=timeout) as response:
                 for raw in response:
-                    line = raw.decode("utf-8").strip()
+                    try:
+                        line = raw.decode("utf-8").strip()
+                    except UnicodeDecodeError as exc:
+                        raise ProviderError("provider stream contained invalid UTF-8") from exc
                     if not line:
                         continue
                     try:
-                        yield json.loads(line)
+                        chunk = json.loads(line)
+                        if not isinstance(chunk, dict):
+                            raise ProviderError("provider stream chunk must be a JSON object")
+                        yield chunk
                     except json.JSONDecodeError as exc:
                         raise ProviderError(f"bad JSON in stream from {url}: {line!r}") from exc
         except urllib.error.HTTPError as exc:
@@ -88,7 +94,7 @@ class UrllibTransport:
             raise _http_error(url, exc) from exc
         except urllib.error.URLError as exc:
             raise UnreachableError(f"could not reach {url} ({exc.reason})") from exc
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ProviderError(f"{url} sent something that was not JSON") from exc
         except _READ_FAILURES as exc:
             raise UnreachableError(f"lost the connection to {url} ({exc})") from exc

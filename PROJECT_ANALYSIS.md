@@ -19,7 +19,7 @@ Rolex हा Apple silicon Mac वर चालणारा वैयक्त�
 
 आवाजासाठी Whisper बोलणे मजकुरात बदलतो. परिचित चॅट आणि मेसेज कमांड नियमांनुसार थेट चालतात. इतर विनंत्यांसाठी agent loop Ollama मॉडेलला उपलब्ध साधने देतो आणि निवडलेले साधन चालवण्यापूर्वी त्याचे परवानगीचे नियम तपासतो. उत्तर लिहिण्यासाठी स्वतंत्र मॉडेल निवडता येते. भाषा प्रक्रिया Mac वर होते. WhatsApp वर प्रत्यक्ष संदेश पाठवण्यासाठी WhatsApp Web ची जोडणी लागते.
 
-सध्याचे speech model इंग्रजीसाठी आहे. उत्तर मराठीत लिहिण्याची सेटिंग उपलब्ध आहे, पण मराठीत बोललेली आज्ञा अचूक समजणे ही स्वतंत्र क्षमता आहे. Gemini provider आणि opt-in fallback आता कोडमध्ये उपलब्ध आहेत. ROLEX_GEMINI_FALLBACK=true केल्यावर स्थानिक inference अयशस्वी झाल्यास संभाषण Google कडे पाठवले जाते. प्रत्यक्ष API पडताळणी पूर्ण झाली. सात synthetic कमांड्सवर local, Gemini आणि forced fallback तिन्ही चाचण्यांत ७/७ निकाल मिळाला. Gemini tool-result round सुद्धा पूर्ण झाला. अ‍ॅप पुन्हा सुरू केल्यावरही टिकणारी स्मृती पुढील टप्प्यात आहे.
+सध्याचे speech model इंग्रजीसाठी आहे. उत्तर मराठीत लिहिण्याची सेटिंग उपलब्ध आहे, पण मराठीत बोललेली आज्ञा अचूक समजणे ही स्वतंत्र क्षमता आहे. Gemini provider आणि opt-in fallback आता कोडमध्ये उपलब्ध आहेत. ROLEX_GEMINI_FALLBACK=true केल्यावर स्थानिक inference अयशस्वी झाल्यास संभाषण Google कडे पाठवले जाते. प्रत्यक्ष API पडताळणी पूर्ण झाली. सात synthetic कमांड्सवर local, Gemini आणि forced fallback तिन्ही चाचण्यांत ७/७ निकाल मिळाला. Gemini tool-result round सुद्धा पूर्ण झाला. अ‍ॅप पुन्हा सुरू केल्यावर टिकणारी स्मृती आता उपलब्ध आहे. ROLEX_MEMORY=true केल्यावर संभाषण स्थानिक SQLite database मध्ये जतन होते. लांब संभाषणाचा सारांश आणि rolex remember कमांडने स्पष्ट पसंती जतन करता येतात.
 
 ## कोड रिव्ह्यूमधील निरीक्षण
 
@@ -30,3 +30,19 @@ Rolex हा Apple silicon Mac वर चालणारा वैयक्त�
 वापर व सेटअपसाठी [README](README.md), घटकांच्या रचनेसाठी [Architecture](ARCHITECTURE.md) आणि नियोजित कामासाठी [Roadmap](PROJECT_ROADMAP.md) पाहा.
 
 ८ नोव्हेंबर २०२६ रोजी `make check` यशस्वी झाला. Ruff, formatting आणि mypy तपासण्या पूर्ण झाल्या आणि सर्व ७१७ टेस्ट्स पास झाल्या. प्रत्यक्ष ग्राहकाला संदेश पाठवून पडताळणी केलेली नाही.
+
+
+## Phase 8 पडताळणी
+
+८ नोव्हेंबर २०२६ रोजी सर्व ७५६ टेस्ट्स पास झाल्या. प्रत्यक्ष Gemini वापरून दोन स्वतंत्र processes मध्ये ATLAS-42 हा project code आठवला आणि जुन्या संभाषणाचा सारांश तयार झाला. सारांशात तपशील कमी होऊ शकतात. चॅट आणि voice दोन्हीमध्ये जुनी मेमरी वापरली जाते. Cloud provider वापरल्यास जुना संदर्भही त्याला पाठवला जातो.
+
+
+## Phase 9 release तयारी
+
+JSON debug traces, provider response validation, finite timeout validation, graceful
+Ctrl+C आणि file/device failures ची हाताळणी जोडली आहे. Memory database उघडता न आल्यास
+त्या session मध्ये तात्पुरत्या संदर्भासह chat आणि voice चालू राहतात. सर्व ७७२ टेस्ट्स
+पास झाल्या. 0.1.0 wheel व source archive तयार होतात आणि wheel स्वतंत्र Python 3.12
+environment मध्ये चालतो. [Live test guide](LIVE_TEST.md) आणि
+[CLI smoke recording](demo/cli-smoke.cast) उपलब्ध आहेत. वापरकर्त्याची प्रत्यक्ष
+voice/Chrome/WhatsApp चाचणी आणि अंतिम release commit/tag बाकी आहेत.

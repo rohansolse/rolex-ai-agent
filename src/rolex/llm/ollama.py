@@ -125,7 +125,10 @@ class OllamaProvider:
             raise ProviderError(f"{self.name}: reply had no message field")
 
         calls: list[ToolCall] = []
-        for raw in message.get("tool_calls") or []:
+        raw_calls = message.get("tool_calls") or []
+        if not isinstance(raw_calls, list):
+            raise ProviderError(f"{self.name}: tool_calls must be a list")
+        for raw in raw_calls:
             function = raw.get("function") if isinstance(raw, dict) else None
             if not isinstance(function, dict) or not isinstance(function.get("name"), str):
                 continue

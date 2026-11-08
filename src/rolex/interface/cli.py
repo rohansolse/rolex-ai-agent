@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from rolex import __version__
+from rolex.agent.memory import Memory
 from rolex.core.config import Config, load_config
 from rolex.core.errors import RolexError
 from rolex.core.logging import configure_logging
@@ -25,8 +26,10 @@ commands:
   chat            type to rolex
   listen          speak to rolex; say "rolex" to wake it
   talk            speak to rolex, pressing Enter each time instead
+  remember TEXT   save a user preference for future sessions
   doctor          check that everything rolex needs is in place
 
+  --debug         JSON debug traces to stderr (e.g. rolex --debug chat)
   -V, --version   print the version and exit
   -h, --help      print this message and exit
 
@@ -36,7 +39,16 @@ changes the machine asks first. See PROJECT_ROADMAP.md."""
 
 def main(argv: list[str] | None = None) -> int:
     """Run the rolex CLI. Returns the process exit code."""
-    args = sys.argv[1:] if argv is None else argv
+    args = list(sys.argv[1:] if argv is None else argv)
+    debug = False
+    if args and args[0] == "--debug":
+        debug = True
+        args.pop(0)
+    elif (
+        len(args) == 2 and args[0] in {"chat", "listen", "talk", "doctor"} and args[-1] == "--debug"
+    ):
+        debug = True
+        args.pop()
 
     if not args:
         print(USAGE)
@@ -52,19 +64,28 @@ def main(argv: list[str] | None = None) -> int:
         print(USAGE)
         return 0
 
+    if command == "remember" and rest:
+        try:
+            Memory(load_config().memory_path).remember(" ".join(rest))
+            print("Preference saved. Enable ROLEX_MEMORY=true to use it in chat and voice.")
+            return 0
+        except RolexError as exc:
+            print(f"rolex: {exc}", file=sys.stderr)
+            return 1
+
     if command in {"chat", "listen", "talk", "doctor"} and not rest:
-        return _run(command)
+        return _run(command, debug=debug)
 
     print(f"rolex: unrecognised arguments: {' '.join(args)}", file=sys.stderr)
     print(USAGE, file=sys.stderr)
     return 2
 
 
-def _run(command: str) -> int:
+def _run(command: str, *, debug: bool = False) -> int:
     """Run a command, turning our own errors into a message rather than a traceback."""
     try:
         config = load_config()
-        configure_logging(config.log_level)
+        configure_logging("DEBUG" if debug else config.log_level, structured=debug)
         if command == "chat":
             return run_chat(config)
         if command in {"listen", "talk"}:
@@ -73,6 +94,14 @@ def _run(command: str) -> int:
     except RolexError as exc:
         print(f"rolex: {exc}", file=sys.stderr)
         return 1
+    except OSError:
+        print(
+            "rolex: could not access a required file or device. Run rolex doctor.", file=sys.stderr
+        )
+        return 1
+    except KeyboardInterrupt:
+        print("\nStopped.", file=sys.stderr)
+        return 130
 
 
 def _doctor(config: Config) -> int:
@@ -84,6 +113,9 @@ def _doctor(config: Config) -> int:
     if config.provider == "gemini" or config.gemini_fallback:
         print(f"cloud model  {config.gemini_model}")
     print(f"reply model  {config.drafting_model}")
+    print(f"memory       {'on' if config.memory else 'off'}")
+    if config.memory:
+        print(f"memory path  {config.memory_path}")
     print(f"reply in     {config.reply_language}")
     print(f"ollama host  {config.ollama_host}")
     print(f"models dir   {config.ollama_models_dir}")
