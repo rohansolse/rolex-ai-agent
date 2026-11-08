@@ -508,9 +508,12 @@ def test_no_tabs_says_so(chrome: FakeRun) -> None:
 
 
 def test_closing_a_tab_names_what_was_closed(chrome: FakeRun) -> None:
-    chrome.answers = ["true", "3", "Example Domain", ""]
+    chrome.answers = ["true", "3", "Example Domain", "closed"]
     assert browser.close_tab(3) == "Closed the tab showing 'Example Domain'."
-    assert any("close tab 3" in script for script in chrome.scripts)
+    assert any(
+        "set target_tab to tab 3" in script and "close target_tab" in script
+        for script in chrome.scripts
+    )
 
 
 def test_switching_tab_names_where_it_went(chrome: FakeRun) -> None:
@@ -913,3 +916,16 @@ def test_opening_whatsapp_still_reuses_a_tab_by_default(chrome: FakeRun) -> None
 
     assert chat_page.open_whatsapp() == "Opened WhatsApp Web in Chrome."
     assert "repeat with w in windows" in chrome.scripts[-1]
+
+
+def test_changed_tab_is_not_closed(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "2", "WhatsApp"]
+    with pytest.raises(ToolError, match="tab changed"):
+        browser.close_tab(1, expected_title="New tab")
+    assert not any("close target_tab" in script for script in chrome.scripts)
+
+
+def test_unverified_tab_close_does_not_claim_success(chrome: FakeRun) -> None:
+    chrome.answers = ["true", "2", "New tab", "still_open"]
+    with pytest.raises(ToolError, match="did not confirm"):
+        browser.close_tab(1, expected_title="New tab")

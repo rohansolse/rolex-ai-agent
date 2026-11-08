@@ -100,3 +100,39 @@ def test_malformed_tool_calls_report_provider_error() -> None:
     )
     with pytest.raises(ProviderError, match="tool_calls"):
         provider.complete([Message("user", "hello")])
+
+
+def test_browser_answer_without_tool_evidence_is_not_presented_as_fact() -> None:
+    from rolex.agent.loop import Answer
+
+    provider = FakeProvider(["Chrome is already opened.", "Chrome is already opened."])
+    agent = Agent(provider)
+    events = list(agent.ask("is chrome opened?"))
+    assert isinstance(events[-1], Answer)
+    assert "not verified" in events[-1].content
+    assert "Chrome is already opened." not in agent.history[-1].content
+    assert len(provider.seen) == 1
+
+
+def test_unverified_browser_answer_retries_and_accepts_live_tool_result() -> None:
+    from rolex.agent.loop import Answer
+
+    provider = FakeProvider(
+        [
+            "There is 1 tab open.",
+            Reply("", (ToolCall("list_tabs", {}),)),
+            "There are 3 tabs open.",
+        ]
+    )
+    tool = Tool(name="list_tabs", description="List", run=lambda _: "3 tabs")
+    agent = Agent(provider, tools=[tool])
+    events = list(agent.ask("please check actual tabs"))
+    assert isinstance(events[-1], Answer)
+    assert events[-1].content == "There are 3 tabs open."
+
+
+def test_browser_howto_question_can_be_answered_without_tool() -> None:
+    provider = FakeProvider(["Press Command+T to open a tab."])
+    agent = Agent(provider)
+    list(agent.ask("How do I open a Chrome tab?"))
+    assert len(provider.seen) == 1

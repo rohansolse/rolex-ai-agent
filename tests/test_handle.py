@@ -662,3 +662,112 @@ def test_tab_count_and_recheck_read_fresh_data_without_model(
     output = capsys.readouterr().out
     assert "window: 3" in output
     assert "window: 4" in output
+
+
+@pytest.mark.parametrize("approval", [True, False])
+def test_closing_new_tab_resolves_live_title_and_asks_before_running(
+    monkeypatch: pytest.MonkeyPatch,
+    approval: bool,
+) -> None:
+    from rolex.agent.consent import Policy
+    from rolex.tools.base import Tool
+
+    calls: list[object] = []
+    confirmations: list[object] = []
+
+    def close(arguments: object) -> str:
+        calls.append(arguments)
+        return "Closed the tab showing 'New tab'."
+
+    tabs = Tool(
+        name="list_tabs",
+        description="List",
+        run=lambda _: "Tabs in the front Chrome window: 2\n1. New tab\n2. [open] WhatsApp",
+    )
+    closer = Tool(name="close_tab", description="Close", safety="mutating", run=close)
+    monkeypatch.setattr(
+        "rolex.interface.handle.get",
+        lambda name: {
+            "list_tabs": tabs,
+            "close_tab": closer,
+        }[name],
+    )
+
+    def ask(tool: Tool, arguments: object) -> bool:
+        confirmations.append(arguments)
+        return approval
+
+    match = recognised("close new tab")
+    assert match is not None
+    list(carry_out(match, "close new tab", FakeProvider(), Config(), policy=Policy(ask=ask)))
+    expected = {"number": 1, "expected_title": "New tab"}
+    assert confirmations == [expected]
+    assert calls == ([expected] if approval else [])
+
+
+def test_ambiguous_tab_title_is_not_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    from rolex.tools.base import Tool
+
+    listing = Tool(name="list_tabs", description="List", run=lambda _: "1. New tab\n2. New tab")
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: listing)
+    match = recognised("close new tab")
+    assert match is not None
+    events = list(carry_out(match, "close new tab", FakeProvider(), Config()))
+    assert isinstance(events[-1], Answer)
+    assert "Specify its number" in events[-1].content
+
+
+def test_marathi_recheck_uses_last_tab_question() -> None:
+    said = "totel check kara kiti ahe live chek kara"
+    history = [
+        Message("user", "hello kiti tab chalu ahet"),
+        Message("assistant", "Old tab listing"),
+    ]
+    match = recognised(said, history)
+    assert match is not None and match.name == "list_tabs"
+    assert recognised(said) is None
+
+
+def test_marathi_navigation_opens_whatsapp_before_search(
+    chat: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rolex.agent.consent import always_allow
+    from rolex.tools.base import Tool
+
+    steps: list[str] = []
+
+    def open_whatsapp(arguments: object) -> str:
+        steps.append("whatsapp")
+        return "Opened WhatsApp Web in Chrome."
+
+    def open_chat(name: str) -> str:
+        assert steps == ["whatsapp"]
+        steps.append(name)
+        return "Opened Rohan Solse."
+
+    tool = Tool(name="open_whatsapp", description="Open", safety="mutating", run=open_whatsapp)
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: tool)
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", open_chat)
+    said = "ok whatsapp amdhe ja ani rohan solse chalu kara"
+    match = recognised(said)
+    assert match is not None
+    list(carry_out(match, said, FakeProvider(), Config(), policy=always_allow()))
+    assert steps == ["whatsapp", "rohan solse"]
+
+
+def test_marathi_navigation_stops_when_whatsapp_opening_is_refused(
+    chat: dict[str, object],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rolex.tools.base import Tool
+
+    def forbidden(arguments: object) -> str:
+        pytest.fail("must not open WhatsApp without consent")
+
+    tool = Tool(name="open_whatsapp", description="Open", safety="mutating", run=forbidden)
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: tool)
+    match = recognised("ok whatsapp amdhe ja ani rohan solse chalu kara")
+    assert match is not None
+    list(carry_out(match, "", FakeProvider(), Config()))
+    assert chat["opened"] == []

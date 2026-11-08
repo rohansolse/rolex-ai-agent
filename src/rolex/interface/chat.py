@@ -168,7 +168,7 @@ def _respond(agent: Agent, said: str, provider: LLMProvider, config: Config) -> 
     The few things the user says most often are rules, not judgements, and
     routing them round the model is what makes them work every time.
     """
-    match = recognised(said)
+    match = recognised(said, agent.history)
     if match is not None:
         return carry_out(
             match, said, provider, config, approve_replacing, agent.history, policy=agent.policy

@@ -11,6 +11,7 @@ This is the only module that imports both :mod:`rolex.llm` and
 
 import json
 import logging
+import re
 import time
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -18,7 +19,7 @@ from typing import Any
 
 from rolex.agent.consent import Policy
 from rolex.core.errors import ProviderError, ToolError
-from rolex.llm.base import LLMProvider, Message, ToolCall, ToolSchema
+from rolex.llm.base import LLMProvider, Message, Reply, ToolCall, ToolSchema
 from rolex.tools.base import Tool
 
 log = logging.getLogger(__name__)
@@ -121,6 +122,18 @@ class Agent:
         # reply; left in place it would do the same for the rest of the turn,
         # telling the model "no tool ran" right after one did.
         nudges: list[Message] = []
+        live_browser_request = bool(
+            re.search(r"\b(?:chrome|browser|tab|tabs|tap|taps|whatsapp|whatapp)\b", question, re.I)
+            and re.search(
+                r"\b(?:open|opened|close|closed|switch|check|chek|list|count|many|"
+                r"kiti|chalu|kara|ja|ahe|ahet|is|are)\b",
+                question,
+                re.I,
+            )
+            and not re.match(r"how\s+(?:to|do\s+i|can\s+i)|what\s+is\s+(?:a|an)\b", question, re.I)
+        )
+        verified_browser_result = False
+        requested_evidence = False
 
         for round_number in range(self.max_rounds):
             started = time.monotonic()
@@ -148,6 +161,22 @@ class Agent:
             answered = reply.wants_tool or bool(reply.content.strip())
 
             if not reply.wants_tool:
+                if answered and live_browser_request and not verified_browser_result:
+                    if not requested_evidence and self.tools:
+                        nudges.append(
+                            Message(
+                                "user",
+                                "No browser tool has succeeded for this request. "
+                                "Read the live state or perform the requested action using tools. "
+                                "Old messages do not establish current browser state.",
+                            )
+                        )
+                        requested_evidence = True
+                        continue
+                    reply = Reply(
+                        "I have not verified the browser state or performed that action. "
+                        "Please specify the tab or chat you want me to check."
+                    )
                 if answered:
                     self.history.extend([*turn, reply.as_message()])
                     yield Answer(reply.content)
@@ -168,7 +197,29 @@ class Agent:
                 "round %d: model asked for %d tool(s)", round_number + 1, len(reply.tool_calls)
             )
             for call in reply.tool_calls:
-                yield from self._invoke(call, turn)
+                for event in self._invoke(call, turn):
+                    if (
+                        isinstance(event, ToolFinished)
+                        and not event.failed
+                        and call.name
+                        in {
+                            "list_tabs",
+                            "read_page",
+                            "page_buttons",
+                            "open_whatsapp",
+                            "open_whatsapp_chat",
+                            "close_tab",
+                            "switch_tab",
+                            "click_text",
+                            "click_item",
+                            "scroll_page",
+                            "read_chat",
+                            "open_app",
+                            "close_app",
+                        }
+                    ):
+                        verified_browser_result = True
+                    yield event
 
         # Out of rounds. Ask once more with no tools offered, so the model has
         # to put what it found into words instead of reaching for another tool.
@@ -176,6 +227,8 @@ class Agent:
         # would leave a tool request with no answer in every later request.
         final = self.provider.complete(self.history + turn + nudges, [])
         content = final.content.strip() or _NOTHING_TO_SAY
+        if live_browser_request and not verified_browser_result:
+            content = "I could not verify the browser state or complete that action."
         self.history.extend([*turn, Message("assistant", content)])
         yield Answer(content, gave_up=True)
 

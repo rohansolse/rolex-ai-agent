@@ -449,7 +449,7 @@ def _respond(
     approve: Approve,
 ) -> Iterable[Event]:
     """Carry out a recognised command, or let the agent loop work it out."""
-    match = recognised(said)
+    match = recognised(said, agent.history)
     if match is not None:
         return carry_out(match, said, provider, config, approve, agent.history, policy=agent.policy)
     return agent.ask(said)

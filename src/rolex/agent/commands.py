@@ -146,6 +146,40 @@ def understand(said: str) -> Match | None:
         offsets = offsets[polite.end() :]
 
     if re.fullmatch(
+        r"(?:hello\s+)?kiti\s+(?:tab|tabs|tap|taps)\s+"
+        r"(?:chalu|open|ughadle)\s+(?:ahe|ahet)(?:\s+atta)?",
+        tidied,
+    ):
+        return Match("list_tabs")
+    marathi_chat = re.fullmatch(
+        r"(?:whatsapp|whatapp)\s+(?:madhe|madhye|amdhe)\s+(?:ja|jaa)"
+        r"\s+(?:ani|aani)\s+(?P<who>.+?)\s+(?:chalu|open|ughad)"
+        r"\s+(?:kara|kar)",
+        tidied,
+    )
+    if marathi_chat:
+        return Match("open_chat_in_whatsapp", rest=_chat_name(marathi_chat["who"]))
+
+    if tidied in {"close it", "close that tab", "close this tab"}:
+        return Match("close_tab")
+
+    close_number = re.fullmatch(
+        r"close\s+(?:the\s+)?(?P<number>\d+|first|second|third|last)"
+        r"\s+(?:tab|tap)(?:\s+in\s+chrome)?",
+        tidied,
+    )
+    if close_number:
+        return Match("close_tab", rest=close_number["number"])
+    close_title = re.fullmatch(
+        r"close\s+(?:it\s+you\s+(?:didnt|did\s+not)\s+close\s+)?"
+        r"(?:the\s+)?(?P<title>.+?)\s+(?:tab|tap)(?:\s+in\s+chrome)?",
+        tidied,
+    )
+    if close_title:
+        title = close_title["title"]
+        return Match("close_tab", rest="New tab" if title == "new" else title, who="title")
+
+    if re.fullmatch(
         r"(?:open|launch|show|go\s+to)\s+(?:the\s+)?(?:whatsapp|whatapp)"
         r"(?:\s+web)?(?:\s+in\s+chrome)?",
         tidied,

@@ -35,7 +35,6 @@ NOT_A_COMMAND = [
     "reply to the email from john",
     "open chrome",
     "what time is it",
-    "close the whatsapp tab",
     "how much battery do I have",
     "who are you",
     "",
@@ -352,3 +351,41 @@ def test_tab_questions_read_actual_browser_state(said: str) -> None:
 def test_tab_design_questions_are_not_browser_inventory(said: str) -> None:
     match = understand(said)
     assert match is None or match.name != "list_tabs"
+
+
+@pytest.mark.parametrize(
+    "said, rest, kind",
+    [
+        ("close new tab", "New tab", "title"),
+        ("close new tap", "New tab", "title"),
+        ("close WhatsApp tab", "whatsapp", "title"),
+        ("close the whatsapp tab", "whatsapp", "title"),
+        ("close first tab", "first", ""),
+        ("close the second tab", "second", ""),
+        ("yes please close it you didnt close new tap", "New tab", "title"),
+    ],
+)
+def test_tab_closing_is_routed(said: str, rest: str, kind: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert (match.name, match.rest, match.who) == ("close_tab", rest, kind)
+
+
+def test_close_it_requires_an_explicit_target() -> None:
+    match = understand("close it")
+    assert match is not None
+    assert match.name == "close_tab"
+    assert not match.rest
+
+
+def test_marathi_tab_query_is_routed() -> None:
+    match = understand("hello kiti tab chalu ahet")
+    assert match is not None
+    assert match.name == "list_tabs"
+
+
+def test_marathi_whatsapp_navigation_keeps_recipient() -> None:
+    match = understand("ok whatsapp amdhe ja ani rohan solse chalu kara")
+    assert match is not None
+    assert match.name == "open_chat_in_whatsapp"
+    assert match.rest == "rohan solse"

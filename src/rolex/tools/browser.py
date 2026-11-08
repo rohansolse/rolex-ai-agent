@@ -564,14 +564,37 @@ def list_tabs() -> str:
     description="Close a Chrome tab by its number from list_tabs.",
     safety="mutating",
 )
-def close_tab(number: int) -> str:
+def close_tab(number: int, expected_title: str = "") -> str:
     """Close one tab.
 
     Args:
         number: Its number in the list_tabs listing.
+        expected_title: Title shown when the user approved closing this tab.
     """
     wanted, title = _tab(number)
-    _osascript(f'tell application "{BROWSER}" to close tab {wanted} of front window')
+    approved_title = expected_title or title
+    if title != approved_title:
+        raise ToolError("the tab changed; list tabs and confirm again")
+    status = _osascript(
+        f'tell application "{BROWSER}"\n'
+        '  if (count of windows) is 0 then return "changed"\n'
+        "  tell front window\n"
+        f'    if (count of tabs) < {wanted} then return "changed"\n'
+        f"    set target_tab to tab {wanted}\n"
+        f'    if title of target_tab is not {_quote(approved_title)} then return "changed"\n'
+        "    set target_id to id of target_tab\n"
+        "    close target_tab\n"
+        "  end tell\n"
+        "  repeat with w in windows\n"
+        "    repeat with t in tabs of w\n"
+        '      if id of t = target_id then return "still_open"\n'
+        "    end repeat\n"
+        "  end repeat\n"
+        '  return "closed"\n'
+        "end tell"
+    )
+    if status != "closed":
+        raise ToolError("Chrome did not confirm the tab was closed; list tabs and try again")
     return f"Closed the tab showing {title!r}."
 
 

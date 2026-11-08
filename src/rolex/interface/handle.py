@@ -28,9 +28,25 @@ from rolex.tools.chat_page import (
 )
 
 
-def recognised(said: str) -> Match | None:
-    """The command this is, or None to let the agent loop decide."""
-    return understand(said)
+def recognised(said: str, history: list[Message] | None = None) -> Match | None:
+    """Resolve an instruction, including an explicit recheck of the last tab query."""
+    match = understand(said)
+    if match is not None:
+        return match
+    if re.fullmatch(
+        r"(?:total|totel)\s+(?:check|chek)\s+kara\s+kiti\s+(?:ahe|ahet)"
+        r"\s+live\s+(?:check|chek)\s+kara",
+        said.strip(),
+        re.IGNORECASE,
+    ):
+        previous = next(
+            (message for message in reversed(history or []) if message.role == "user"), None
+        )
+        if previous is not None:
+            last = understand(previous.content)
+            if last is not None and last.name == "list_tabs":
+                return Match("list_tabs")
+    return None
 
 
 def carry_out(
@@ -48,6 +64,10 @@ def carry_out(
     Same events so the caller shows the work identically however it was
     handled, and the user never has to care which path was taken.
     """
+    if match.name == "close_tab":
+        yield from _remember(_close_tab(match, policy or Policy()), said, history)
+        return
+
     if match.name in {"open_whatsapp", "list_tabs"}:
         yield from _remember(_registered_action(match, policy or Policy()), said, history)
         return
@@ -56,8 +76,8 @@ def carry_out(
         yield from _remember(_reply(match, provider, config, approve), said, history)
         return
 
-    if match.name == "open_chat":
-        yield from _remember(_open_chat(match), said, history)
+    if match.name in {"open_chat", "open_chat_in_whatsapp"}:
+        yield from _remember(_open_chat(match, policy or Policy()), said, history)
         return
 
     if match.name in {"send", "send_to", "type_previous"}:
@@ -67,6 +87,61 @@ def carry_out(
         return
 
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
+
+
+def _close_tab(match: Match, policy: Policy) -> Iterator[Event]:
+    """Resolve against a fresh listing and confirm the exact tab before closing."""
+    if not match.rest:
+        yield Answer("Which tab should I close? Give its name or number.")
+        return
+    step = "list_tabs"
+    yield ToolStarted("list_tabs", {})
+    try:
+        listing = str(get("list_tabs").run({}))
+        yield ToolFinished("list_tabs", listing)
+        tabs = [
+            (int(number), title.removeprefix("[open] "))
+            for number, title in re.findall(r"(?m)^(\d+)\. (.+)$", listing)
+        ]
+        if match.who == "title":
+            exact = [
+                (number, title)
+                for number, title in tabs
+                if title.casefold() == match.rest.casefold()
+            ]
+            candidates = exact or [
+                (number, title)
+                for number, title in tabs
+                if match.rest.casefold() in title.casefold()
+            ]
+        else:
+            positions = {"first": 1, "second": 2, "third": 3, "last": tabs[-1][0] if tabs else 0}
+            wanted = positions.get(match.rest)
+            if wanted is None:
+                wanted = int(match.rest)
+            candidates = [(number, title) for number, title in tabs if number == wanted]
+        if len(candidates) != 1:
+            yield Answer(
+                "I could not identify one tab. Specify its number from this list:\n" + listing
+            )
+            return
+        number, title = candidates[0]
+        tool = get("close_tab")
+        arguments = {"number": number, "expected_title": title}
+        decision = policy.decide(tool, arguments)
+        if not decision.allowed:
+            yield ToolRefused("close_tab", decision.reason)
+            yield Answer("The tab was not closed because permission was not granted.")
+            return
+        step = "close_tab"
+        yield ToolStarted("close_tab", arguments)
+        result = str(tool.run(arguments))
+    except RolexError as exc:
+        yield ToolFinished(step, str(exc), failed=True)
+        yield Answer(str(exc))
+        return
+    yield ToolFinished("close_tab", result)
+    yield Answer(result)
 
 
 def _registered_action(match: Match, policy: Policy) -> Iterator[Event]:
@@ -90,13 +165,23 @@ def _registered_action(match: Match, policy: Policy) -> Iterator[Event]:
     yield Answer(text)
 
 
-def _open_chat(match: Match) -> Iterator[Event]:
+def _open_chat(match: Match, policy: Policy) -> Iterator[Event]:
     """Open a WhatsApp conversation by name.
 
     A rule, not a judgement: the model was clicking numbered items at random
     rather than searching, and opening the wrong conversation is how a
     message reaches the wrong person.
     """
+    if match.name == "open_chat_in_whatsapp":
+        opened = True
+        for event in _registered_action(Match("open_whatsapp"), policy):
+            if isinstance(event, ToolRefused) or (isinstance(event, ToolFinished) and event.failed):
+                opened = False
+            if not isinstance(event, Answer) or not opened:
+                yield event
+        if not opened:
+            return
+
     yield ToolStarted("open_whatsapp_chat", {"name": match.rest})
 
     try:
