@@ -495,8 +495,9 @@ def test_scrolling_into_view_is_instant(chrome: FakeRun) -> None:
 
 
 def test_tabs_are_listed_with_numbers_and_the_open_one_marked(chrome: FakeRun) -> None:
-    chrome.answers = ["true", "1. Colab\n2. [open] WhatsApp"]
+    chrome.answers = ["true", "2\n1. Colab\n2. [open] WhatsApp"]
     listed = browser.list_tabs()
+    assert "front Chrome window: 2" in listed
     assert "close_tab" in listed
     assert "[open] WhatsApp" in listed
 

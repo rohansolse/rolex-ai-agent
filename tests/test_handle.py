@@ -635,3 +635,30 @@ def test_whatsapp_open_failure_is_reported_as_failure(
     assert any(isinstance(event, ToolFinished) and event.failed for event in events)
     assert isinstance(events[-1], Answer)
     assert events[-1].content == "Chrome automation permission denied"
+
+
+def test_tab_count_and_recheck_read_fresh_data_without_model(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from rolex.interface.chat import run_chat
+    from rolex.tools.base import Tool
+
+    counts = iter([3, 4])
+    calls: list[object] = []
+
+    def read_tabs(arguments: object) -> str:
+        calls.append(arguments)
+        return f"Tabs in the front Chrome window: {next(counts)}"
+
+    tool = Tool(name="list_tabs", description="List tabs", run=read_tabs)
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: tool)
+    lines = iter(["how many tabs are opened", "please check actual taps", "exit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(lines))
+    provider = FakeProvider("There are 2 tabs")
+    assert run_chat(Config(), provider=provider, tools=[]) == 0
+    assert provider.asked == 0
+    assert calls == [{}, {}]
+    output = capsys.readouterr().out
+    assert "window: 3" in output
+    assert "window: 4" in output

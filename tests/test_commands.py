@@ -323,3 +323,32 @@ def test_new_whatsapp_tab_is_a_direct_command() -> None:
     assert match is not None
     assert match.name == "open_whatsapp"
     assert match.rest == "new_tab"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "how many tabs are opened",
+        "please check actual taps",
+        "list tabs",
+        "show me the open tabs",
+        "check the actual Chrome tabs",
+        "how many tabs do I have",
+    ],
+)
+def test_tab_questions_read_actual_browser_state(said: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == "list_tabs"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "how many tabs should my website have",
+        "show me how to create tabs",
+    ],
+)
+def test_tab_design_questions_are_not_browser_inventory(said: str) -> None:
+    match = understand(said)
+    assert match is None or match.name != "list_tabs"

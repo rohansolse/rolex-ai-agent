@@ -53,6 +53,17 @@ _THIS_CHAT = r"(?:this|that|them|him|her|the\s+client|the\s+chat|the\s+message)"
 
 COMMANDS: tuple[Command, ...] = (
     Command(
+        name="list_tabs",
+        patterns=(
+            r"^(?:how\s+many|what|which)\s+(?:(?:chrome|browser)\s+)?tabs"
+            r"(?:\s+(?:are|do\s+i\s+have))?(?:\s+(?:open|opened))?"
+            r"(?:\s+(?:in\s+chrome|right\s+now|now))?$",
+            r"^(?:list|show|check|count)\s+(?:me\s+)?(?:the\s+)?"
+            r"(?:(?:actual|open|opened|all|chrome|browser)\s+)*(?:tabs|taps)"
+            r"(?:\s+(?:in\s+chrome|right\s+now|now))?$",
+        ),
+    ),
+    Command(
         name="reply",
         patterns=(
             # "draft a reply", "write me a response" — and nothing after the

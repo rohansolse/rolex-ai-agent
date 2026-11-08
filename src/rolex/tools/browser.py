@@ -541,11 +541,23 @@ def list_tabs() -> str:
         # Set outside the Chrome block: `text item delimiters` belongs to
         # AppleScript itself, and Chrome rejects being asked for it.
         "set AppleScript's text item delimiters to linefeed\n"
-        "return out as text"
+        "return ((count of out) as text) & linefeed & (out as text)"
     )
     if not listing:
         return "No tabs are open."
-    return f"Tabs in Chrome (close_tab and switch_tab take the number):\n{listing}"
+    total_text, _, rows = listing.partition("\n")
+    try:
+        total = int(total_text)
+        if total < 0:
+            raise ValueError("negative tab count")
+    except ValueError as exc:
+        raise ToolError("Chrome returned an invalid tab count; try listing tabs again") from exc
+    if total == 0:
+        return "No tabs are open."
+    return (
+        f"Tabs in the front Chrome window: {total} "
+        f"(close_tab and switch_tab take the number):\n{rows}"
+    )
 
 
 @register(

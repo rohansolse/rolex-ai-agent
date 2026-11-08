@@ -48,8 +48,8 @@ def carry_out(
     Same events so the caller shows the work identically however it was
     handled, and the user never has to care which path was taken.
     """
-    if match.name == "open_whatsapp":
-        yield from _remember(_open_whatsapp(match, policy or Policy()), said, history)
+    if match.name in {"open_whatsapp", "list_tabs"}:
+        yield from _remember(_registered_action(match, policy or Policy()), said, history)
         return
 
     if match.name == "reply":
@@ -69,14 +69,14 @@ def carry_out(
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
 
 
-def _open_whatsapp(match: Match, policy: Policy) -> Iterator[Event]:
+def _registered_action(match: Match, policy: Policy) -> Iterator[Event]:
     """Execute the registered browser action through the caller's consent policy."""
-    tool = get("open_whatsapp")
-    arguments = {"new_tab": match.rest == "new_tab"}
+    tool = get(match.name)
+    arguments = {"new_tab": match.rest == "new_tab"} if match.name == "open_whatsapp" else {}
     decision = policy.decide(tool, arguments)
     if not decision.allowed:
         yield ToolRefused(tool.name, decision.reason)
-        yield Answer("WhatsApp was not opened because permission was not granted.")
+        yield Answer(f"{tool.name} was not run because permission was not granted.")
         return
     yield ToolStarted(tool.name, arguments)
     try:
