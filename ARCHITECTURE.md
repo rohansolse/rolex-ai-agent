@@ -476,7 +476,10 @@ three obvious tools to one clever one.
 ## Observed command workflows
 
 `interface.processor.respond` is the shared entry for typed input and voice
-transcripts. `agent.grounded` extracts supported multilingual command families and
+transcripts. Explicit installed-app launch requests use the session's `open_app`
+tool directly with its original consent policy. Unrelated requests skip the
+browser-only planner, and model-proposed cancellation must match explicit source
+intent. `agent.grounded` extracts supported multilingual command families and
 literal source slots; unfamiliar wording can use the provider's constrained JSON
 interpretation. `agent.intent` validates the complete plan before execution.
 Ordinary conversation and established tools retain the existing agent loop.

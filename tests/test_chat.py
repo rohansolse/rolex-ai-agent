@@ -337,4 +337,4 @@ def test_a_refusal_is_shown_to_the_user(
 
     out = capsys.readouterr().out
     assert "refused" in out
-    assert "I did not open it" in out
+    assert "not open" in out

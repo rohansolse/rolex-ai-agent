@@ -423,10 +423,13 @@ def test_the_question_is_phrased_for_listening(
     assert _question(tool, arguments) == expected
 
 
-def test_a_mutating_tool_in_a_voice_session_is_asked_about_aloud() -> None:
+def test_a_mutating_tool_in_a_voice_session_is_asked_about_aloud(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The whole path: heard a command, asked out loud, acted on the answer."""
     from rolex.llm.base import ToolCall
 
+    monkeypatch.setattr("rolex.interface.processor.installed_apps", lambda: ["Google Chrome"])
     opened: list[str] = []
     app = Tool(
         name="open_app",

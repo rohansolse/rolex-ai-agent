@@ -6,6 +6,23 @@ Update, 9 November: the local model was subsequently changed from `qwen3:4b` to
 `qwen3.5:4b-q4_K_M` after [measured comparison](MODEL_COMPARISON.md).
 The results below preserve the original verification context.
 
+### App launch routing correction — 9 November
+
+The configured Qwen3.5 model reproduced `cancel` plans for both `hello open chrome`
+and `i aked to open chrome`. The browser-only planner had no application-launch
+action and its validator accepted unrequested cancellation. The shared processor
+now routes explicit installed-application requests to the session's registered
+`open_app` tool, retaining its consent policy and reporting its actual result.
+Unrelated system requests skip browser planning. Cancellation requires an explicit
+source instruction; text inside a dictated message cannot cancel a workflow.
+
+Both exact inputs passed through real `make chat` with the configured provider;
+the OS independently confirmed Chrome running. Application recognition tests cover
+other installed names, Marathi/Hindi word order, corrections, denial, failures and
+negated/questions/compound inputs. The voice consent regression uses the same
+route. Full checks pass with **889 tests**. Evidence is recorded in
+[verification/open-app-routing.json](verification/open-app-routing.json).
+
 ## Root causes and changes
 
 The small model described actions without tools, reused stale counts and sometimes

@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from rolex.agent.grounded import extract
+from rolex.agent.grounded import extract, is_cancel
 from rolex.core.errors import ProviderError
 from rolex.llm.base import LLMProvider, Message
 from rolex.tools.session import Contact, Target
@@ -207,6 +207,10 @@ def validate(raw: dict[str, Any], said: str) -> list[Step]:
         ]
 
     for step in steps:
+        if step.action == "cancel" and not is_cancel(said):
+            raise ProviderError(
+                "Cancellation was not requested. Please preserve the user's action."
+            )
         if step.action == "count_tabs" and not re.search(
             r"\b(?:tab|tabs|tap|taps)\b|टॅब|टैब",
             control_text,

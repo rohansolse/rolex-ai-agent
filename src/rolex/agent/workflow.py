@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from rolex.agent.consent import Policy
+from rolex.agent.grounded import concerns_workflow, is_cancel
 from rolex.agent.intent import CommandState, Step, interpret
 from rolex.agent.loop import Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.agent.reply import Approve
@@ -60,16 +61,7 @@ class Workflow:
     backend: Backend = field(default_factory=lambda: NativeBackend())
 
     def process(self, said: str) -> Iterator[Event] | None:
-        if said.strip().casefold() in {
-            "cancel",
-            "stop",
-            "never mind",
-            "रद्द",
-            "रद्द कर",
-            "नको",
-            "नको पाठवू",
-            "मत भेजो",
-        }:
+        if is_cancel(said):
             self.state.pending.clear()
             self.state.candidates.clear()
             return iter([Answer("Cancelled. No pending instruction will be resumed.")])
@@ -121,6 +113,8 @@ class Workflow:
             self.state.pending.clear()
             self.state.candidates.clear()
             return self.execute(resumed)
+        if not concerns_workflow(said):
+            return None
         try:
             plan = interpret(self.provider, said)
         except ProviderError as exc:

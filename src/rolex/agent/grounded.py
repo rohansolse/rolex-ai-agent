@@ -25,6 +25,26 @@ _POLITE = re.compile(
     r"^(?:(?:hello|hi|ok|okay|yes|please|pls|can you|could you|would you)\s+)+",
     re.I,
 )
+_CANCEL = frozenset({"cancel", "stop", "never mind", "रद्द", "रद्द कर", "नको", "नको पाठवू", "मत भेजो"})
+_WORKFLOW_SUBJECT = re.compile(
+    r"\b(?:tabs?|taps?|whats?app|chats?|conversations?|groups?|drafts?|"
+    r"type|write|compose|enter|insert|paste|send|bhej|bhejo|pathav|pathva|"
+    r"likho|lihi|liha|cancel|stop)\b"
+    r"|टॅब|टैब|चॅट|चैट|व्हॉट्स|व्हाट्स|वॉट्स|लिह|लिख|पाठव|भेज|रद्द|नको",
+    re.I,
+)
+
+
+def is_cancel(said: str) -> bool:
+    """Cancellation must be the user's instruction, not an invented model step."""
+    return _POLITE.sub("", said.strip().rstrip(".!?।")).casefold() in _CANCEL
+
+
+def concerns_workflow(said: str) -> bool:
+    """Keep unrelated app/system requests out of the browser-only plan schema."""
+    return is_cancel(said) or bool(_WORKFLOW_SUBJECT.search(said))
+
+
 _NUMBERS = {
     "one": 1,
     "two": 2,
@@ -100,6 +120,8 @@ def _recipient(clause: str) -> str:
 
 
 def extract(said: str) -> list[GroundedAction] | None:
+    if is_cancel(said):
+        return [GroundedAction("cancel")]
     if said.strip(" .!?").casefold() in {"hello", "hi", "hey", "नमस्कार", "नमस्ते"}:
         return [GroundedAction("chat")]
     source = _POLITE.sub("", said.strip())
