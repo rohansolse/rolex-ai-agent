@@ -300,3 +300,26 @@ def test_saying_hi_without_a_chat_send_target_is_conversation(said: str) -> None
 def test_browser_tabs_are_not_chat_names(said: str) -> None:
     match = understand(said)
     assert match is None or match.name != "open_chat"
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "open whatapp web",
+        "open WhatsApp Web",
+        "can you open whatsapp",
+        "please open whatapp web in Chrome",
+    ],
+)
+def test_open_whatsapp_is_a_direct_command(said: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == "open_whatsapp"
+    assert match.rest == ""
+
+
+def test_new_whatsapp_tab_is_a_direct_command() -> None:
+    match = understand("please open new tab in whatapp chat")
+    assert match is not None
+    assert match.name == "open_whatsapp"
+    assert match.rest == "new_tab"

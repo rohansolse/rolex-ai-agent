@@ -585,3 +585,53 @@ def test_say_hi_in_chat_is_not_sent_without_confirmation(chat: dict[str, object]
     )
     assert chat["box"] == "hi"
     assert chat["sent"] == []
+
+
+@pytest.mark.parametrize("answer, should_run", [("y", True), ("n", False)])
+def test_open_whatsapp_reaches_tool_instead_of_model(
+    monkeypatch: pytest.MonkeyPatch,
+    answer: str,
+    should_run: bool,
+) -> None:
+    from rolex.interface.chat import run_chat
+    from rolex.tools.base import Tool
+
+    called: list[object] = []
+
+    def open_page(arguments: object) -> str:
+        called.append(arguments)
+        return "Opened WhatsApp Web in Chrome."
+
+    tool = Tool(name="open_whatsapp", description="Open WhatsApp", safety="mutating", run=open_page)
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: tool)
+    lines = iter(["open whatapp web", answer, "exit"])
+    monkeypatch.setattr("builtins.input", lambda _: next(lines))
+    provider = FakeProvider("This answer must not be used")
+    assert run_chat(Config(), provider=provider, tools=[]) == 0
+    assert provider.asked == 0
+    assert called == ([{"new_tab": False}] if should_run else [])
+
+
+def test_whatsapp_open_failure_is_reported_as_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from rolex.agent.consent import always_allow
+    from rolex.tools.base import Tool
+
+    def fail(arguments: object) -> str:
+        raise ToolError("Chrome automation permission denied")
+
+    tool = Tool(name="open_whatsapp", description="Open", safety="mutating", run=fail)
+    monkeypatch.setattr("rolex.interface.handle.get", lambda _: tool)
+    events = list(
+        carry_out(
+            Match("open_whatsapp"),
+            "open whatapp web",
+            FakeProvider(),
+            Config(),
+            policy=always_allow(),
+        )
+    )
+    assert any(isinstance(event, ToolFinished) and event.failed for event in events)
+    assert isinstance(events[-1], Answer)
+    assert events[-1].content == "Chrome automation permission denied"

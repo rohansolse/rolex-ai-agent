@@ -11,12 +11,14 @@ from collections.abc import Iterator
 from dataclasses import replace
 
 from rolex.agent.commands import Match, understand
+from rolex.agent.consent import Policy
 from rolex.agent.loop import Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.agent.reply import Approve, draft_reply
 from rolex.core.config import Config
 from rolex.core.errors import RolexError
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
+from rolex.tools import get
 from rolex.tools.chat_page import (
     message_box_text,
     open_conversation,
@@ -38,12 +40,18 @@ def carry_out(
     config: Config,
     approve: Approve | None = None,
     history: list[Message] | None = None,
+    *,
+    policy: Policy | None = None,
 ) -> Iterator[Event]:
     """Do what was asked, reporting the same events the agent loop would.
 
     Same events so the caller shows the work identically however it was
     handled, and the user never has to care which path was taken.
     """
+    if match.name == "open_whatsapp":
+        yield from _remember(_open_whatsapp(match, policy or Policy()), said, history)
+        return
+
     if match.name == "reply":
         yield from _remember(_reply(match, provider, config, approve), said, history)
         return
@@ -59,6 +67,27 @@ def carry_out(
         return
 
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
+
+
+def _open_whatsapp(match: Match, policy: Policy) -> Iterator[Event]:
+    """Execute the registered browser action through the caller's consent policy."""
+    tool = get("open_whatsapp")
+    arguments = {"new_tab": match.rest == "new_tab"}
+    decision = policy.decide(tool, arguments)
+    if not decision.allowed:
+        yield ToolRefused(tool.name, decision.reason)
+        yield Answer("WhatsApp was not opened because permission was not granted.")
+        return
+    yield ToolStarted(tool.name, arguments)
+    try:
+        result = tool.run(arguments)
+    except RolexError as exc:
+        yield ToolFinished(tool.name, str(exc), failed=True)
+        yield Answer(str(exc))
+        return
+    text = str(result)
+    yield ToolFinished(tool.name, text)
+    yield Answer(text)
 
 
 def _open_chat(match: Match) -> Iterator[Event]:

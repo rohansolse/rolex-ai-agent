@@ -170,7 +170,9 @@ def _respond(agent: Agent, said: str, provider: LLMProvider, config: Config) -> 
     """
     match = recognised(said)
     if match is not None:
-        return carry_out(match, said, provider, config, approve_replacing, agent.history)
+        return carry_out(
+            match, said, provider, config, approve_replacing, agent.history, policy=agent.policy
+        )
     return agent.ask(said)
 
 

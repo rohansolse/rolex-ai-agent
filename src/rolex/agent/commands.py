@@ -134,6 +134,19 @@ def understand(said: str) -> Match | None:
         tidied = tidied[polite.end() :]
         offsets = offsets[polite.end() :]
 
+    if re.fullmatch(
+        r"(?:open|launch|show|go\s+to)\s+(?:the\s+)?(?:whatsapp|whatapp)"
+        r"(?:\s+web)?(?:\s+in\s+chrome)?",
+        tidied,
+    ):
+        return Match("open_whatsapp")
+    if re.fullmatch(
+        r"open\s+(?:(?:a|the)\s+)?(?:new|another)\s+tab\s+"
+        r"(?:in|for|on|with)\s+(?:whatsapp|whatapp)(?:\s+web)?(?:\s+chat)?",
+        tidied,
+    ):
+        return Match("open_whatsapp", rest="new_tab")
+
     original = said[offsets[0] :].strip() if offsets else ""
     spoken_message = re.fullmatch(
         r"say\s+(?P<text>.+?)\s+in\s+(?:the\s+)?(?:whatsapp|whatapp)\s+"

@@ -451,7 +451,7 @@ def _respond(
     """Carry out a recognised command, or let the agent loop work it out."""
     match = recognised(said)
     if match is not None:
-        return carry_out(match, said, provider, config, approve, agent.history)
+        return carry_out(match, said, provider, config, approve, agent.history, policy=agent.policy)
     return agent.ask(said)
 
 
