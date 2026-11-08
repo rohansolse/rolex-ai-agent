@@ -178,15 +178,16 @@ def page_buttons() -> str:
         raise ToolError("could not read what is on this page") from exc
 
     where = str(found.get("page") or "this page")
+    key = str(found.get("key") or where)
     listing = str(found.get("items") or "")
 
     if not listing:
-        _remember(where, [])
+        _remember(key, [])
         return f"Nothing clickable was found on {where}."
 
     lines = listing.splitlines()
-    marked = _mark_new(where, lines)
-    _remember(where, lines)
+    marked = _mark_new(key, lines)
+    _remember(key, lines)
 
     return f"Clickable on {where} (click_item takes the number):\n" + "\n".join(marked)
 
@@ -327,7 +328,15 @@ _LIST_CLICKABLE = (
     out.push((out.length + 1) + '. [' + where + '] ' + label);
     if (out.length >= LIMIT) break;
   }
-  return JSON.stringify({page: document.title || location.host, items: out.join('\\n')});
+  // Keyed on the address, not the title: WhatsApp puts the unread count
+  // in its title, so "(1) WhatsApp" and "WhatsApp" would be two pages and
+  // the "what is new?" comparison would reset exactly when something new
+  // arrived.
+  return JSON.stringify({
+    page: document.title || location.host,
+    key: location.origin + location.pathname,
+    items: out.join('\\n')
+  });
 })()
 """
 )

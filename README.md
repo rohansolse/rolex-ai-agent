@@ -215,8 +215,11 @@ group"*, *"open chat with Priya"* — it searches for it rather than hunting
 the list, and a name said loosely ("MBRJ Self" for "MBRJ | Self") still
 finds it.
 
-**It never sends.** The draft sits in the box until you press Enter. That is
-the whole safety of it.
+**It only sends when you say so.** A draft sits in the box until you press
+Enter yourself. If you do ask — *"send hi to Rohan"*, *"tell Priya we are
+closed tomorrow"*, *"send it"* — rolex types it, shows you the recipient and
+the exact words, and asks. Nothing leaves without that yes, whatever else is
+configured.
 
 Two more things it will not do: type over a message you had already started
 without asking, and type into a different conversation from the one it read,

@@ -158,15 +158,23 @@ def _respond(agent: Agent, said: str, provider: LLMProvider, config: Config) -> 
     return agent.ask(said)
 
 
-def approve_replacing(existing: str, draft: str) -> bool:
-    """Ask before typing over something already in the message box.
+def approve_replacing(about: str, text: str) -> bool:
+    """Ask before doing something that cannot be taken back.
 
-    Filling the box selects everything and types over it, so a half-written
-    message would otherwise disappear with no prompt and no undo.
+    Two questions share this: replacing a half-written message, which would
+    otherwise disappear with no undo, and sending, after which the words
+    are on someone else's phone.
     """
-    print(f"{STEP}the message box already has: {short(existing, 60)}")
+    if about.startswith("send:"):
+        who = about.removeprefix("send:")
+        print(f"{STEP}to {who}: {text}")
+        question = f"{STEP}send it? [y/N] "
+    else:
+        print(f"{STEP}the message box already has: {short(about, 60)}")
+        question = f"{STEP}replace it with the draft? [y/N] "
+
     try:
-        return input(f"{STEP}replace it with the draft? [y/N] ").strip().lower() in {"y", "yes"}
+        return input(question).strip().lower() in {"y", "yes"}
     except (EOFError, KeyboardInterrupt):
         print()
         return False

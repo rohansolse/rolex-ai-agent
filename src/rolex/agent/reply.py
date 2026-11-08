@@ -26,7 +26,11 @@ from rolex.tools.chat_page import (
 )
 
 Approve = Callable[[str, str], bool]
-"""Asked whether a half-written message may be replaced: (existing, draft)."""
+"""Asked to confirm something irreversible: (subject, the text).
+
+The subject is ``send:<recipient>`` for sending, and otherwise whatever is
+already in the message box. The two questions are phrased differently by
+the interface; the prefix is what tells them apart."""
 
 INSTRUCTIONS = """You are helping a professional answer a client on a chat \
 application. You will be shown the recent conversation; the client's lines \

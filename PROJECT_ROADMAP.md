@@ -391,8 +391,23 @@ replying, and was verified five times in a row against the real WhatsApp Web,
 including the name said as "MBRJ Self" when it is stored as "MBRJ | Self"
 with an emoji.
 
-**Nothing is sent.** The draft lands in the message box and stops. Reading it
-before it goes is the user's job and the whole safety of the feature.
+**Sending was the missing half.** "Send hi to Rohan" and "send it" were
+being answered with a draft and nothing else, over and over, because rolex
+had no way to press Enter. It does now: `send_message`, plus `send` and
+`send_to` in the router. Sending is the one thing rolex does that cannot be
+undone — a moment later the words are on someone else's phone — so the
+recipient and the exact text are always shown and always confirmed,
+regardless of `allow_destructive`.
+
+Review caught four ways that could have gone wrong before anyone noticed:
+"tell rohan to call me" came out addressed to somebody called "call me";
+"tell me what to do" was read as a message; "send that to rohan" dropped the
+recipient and would have posted to whichever chat was in front; and typing
+would have wiped a half-written message with no prompt.
+
+**Nothing goes out unasked.** A drafted reply lands in the message box and
+stops. Sending happens only when the user asks for it and then confirms what
+and to whom.
 
 ## Phase 7 — Gemini fallback and provider switching · `todo`
 

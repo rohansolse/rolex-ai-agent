@@ -43,6 +43,9 @@ class Match:
     name: str
     rest: str = ""
 
+    who: str = ""
+    """Who a message is for, when the sentence named someone."""
+
 
 #: What the command is allowed to be followed by. Anything else is a
 #: sentence that merely contains the word "reply", and belongs to the model.
@@ -89,6 +92,30 @@ COMMANDS: tuple[Command, ...] = (
         ),
         takes_rest=True,
     ),
+    Command(
+        name="send_to",
+        patterns=(
+            # "send that to rohan": the words are whatever is already in
+            # the box, and the recipient is what makes this a different
+            # command from a bare "send that".
+            r"^(?:please\s+)?send\s+(?:it|that|this|the\s+message|the\s+draft)\s+to\s+",
+            # "send hi to rohan", "send a message to rohan saying hi"
+            r"^(?:please\s+)?send\s+(?!it\b|that\b|this\b|the\s+message\b|the\s+draft\b)",
+            # "message Priya saying hi", "tell Priya that we are closed".
+            # Not "tell me ...", which is a question, not a message.
+            r"^(?:please\s+)?(?:message|text|whatsapp)\s+(?!me\b)",
+            r"^(?:please\s+)?tell\s+(?!me\b)",
+        ),
+        takes_rest=True,
+    ),
+    Command(
+        name="send",
+        patterns=(
+            # "send it", "send that", "send", "send the message" — with no
+            # recipient, so it goes to the conversation already in front.
+            r"^(?:please\s+)?send(?:\s+(?:it|that|this|the\s+message|the\s+draft))?(?=$|\s)",
+        ),
+    ),
 )
 
 
@@ -109,6 +136,21 @@ def understand(said: str) -> Match | None:
                 tidied_rest = _chat_name(tidied_rest)
                 if not tidied_rest:
                     continue
+            if command.name == "send_to":
+                # "send that to rohan" matched the first pattern, which
+                # consumed the "it/that" and the "to": what is left is the
+                # name, and the words are whatever is in the box already.
+                if pattern.endswith(r"\s+to\s+"):
+                    who = _chat_name(tidied_rest)
+                    if not who:
+                        continue
+                    return Match(name=command.name, rest="", who=who)
+
+                verb = tidied.split(" ", 1)[0]
+                who, message = _who_and_what(verb, tidied_rest)
+                if not who or not message:
+                    continue
+                return Match(name=command.name, rest=message, who=who)
             return Match(name=command.name, rest=tidied_rest)
     return None
 
@@ -154,6 +196,48 @@ def _tidy_rest(rest: str) -> str:
     return rest
 
 
+#: "hi to rohan solse" and "rohan solse saying hi" are the same request
+#: written the two ways people write it.
+_TO_THEN_TEXT = re.compile(r"^(?:a\s+message\s+)?(.+?)\s+to\s+(.+)$", re.IGNORECASE)
+_NAME_THEN_TEXT = re.compile(r"^(.+?)\s+(?:saying|that)\s+(.+)$", re.IGNORECASE)
+
+#: "tell rohan to call me" names the person first and the message after.
+#: Read by the "X to Y" rule it comes out backwards, addressed to "call me".
+_NAME_THEN_TO = re.compile(r"^(.+?)\s+to\s+(.+)$", re.IGNORECASE)
+
+
+def _who_and_what(verb: str, rest: str) -> tuple[str, str]:
+    """Who the message is for, and what it says.
+
+    Returns empty strings when the sentence does not clearly hold both; the
+    router then declines it and the model sees the sentence instead.
+    Guessing here would send the wrong words to the wrong person.
+
+    The order depends on the verb. "send hi to rohan" puts the message
+    first; "tell rohan to call me" puts the person first. Read the wrong
+    way round, the second becomes a message to somebody called "call me".
+    """
+    named = _NAME_THEN_TEXT.match(rest)
+    if named:
+        return _chat_name(named.group(1)), named.group(2).strip()
+
+    if verb in _PERSON_FIRST:
+        instructed = _NAME_THEN_TO.match(rest)
+        if instructed:
+            return _chat_name(instructed.group(1)), instructed.group(2).strip()
+        return "", ""
+
+    addressed = _TO_THEN_TEXT.match(rest)
+    if addressed:
+        return _chat_name(addressed.group(2)), addressed.group(1).strip()
+
+    return "", ""
+
+
+#: Verbs that name the person before the message.
+_PERSON_FIRST = frozenset({"tell", "message", "text", "whatsapp"})
+
+
 def _chat_name(rest: str) -> str:
     """A chat's name, with the words around it removed.
 
@@ -161,7 +245,9 @@ def _chat_name(rest: str) -> str:
     "testing ai"; WhatsApp does not have "group" in its name.
     """
     words = rest.strip().strip(".?!").split()
-    while words and words[0].casefold() in {"me", "the", "my", "our", "whatsapp", "a"}:
+    # "a message to priya" is priya; "the testing ai group" is testing ai.
+    leading = {"me", "the", "my", "our", "whatsapp", "a", "an", "message", "msg", "to"}
+    while words and words[0].casefold() in leading:
         words.pop(0)
     while words and words[-1].casefold() in {"group", "chat", "conversation", "whatsapp"}:
         words.pop()

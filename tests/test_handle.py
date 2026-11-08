@@ -5,7 +5,7 @@ from collections.abc import Iterator
 import pytest
 
 from rolex.agent.commands import Match
-from rolex.agent.loop import Answer, Event, ToolFinished, ToolStarted
+from rolex.agent.loop import Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.core.config import Config
 from rolex.core.errors import ToolError
 from rolex.interface.handle import carry_out, recognised
@@ -284,3 +284,160 @@ def test_a_chat_that_cannot_be_opened_is_reported(
     last = events[-1]
     assert isinstance(last, Answer)
     assert "came up in the search" in last.content
+
+
+# --- sending ---------------------------------------------------------------
+
+
+@pytest.fixture
+def chat(monkeypatch: pytest.MonkeyPatch) -> dict[str, object]:
+    """Fake the WhatsApp page; returns what happened to it."""
+    state: dict[str, object] = {"box": "", "open": "testing ai", "sent": [], "opened": []}
+
+    def put(text: str) -> str:
+        state["box"] = text
+        return f"Put this in the message box, unsent, for you to check:\n{text}"
+
+    def send() -> str:
+        sent = state["sent"]
+        assert isinstance(sent, list)
+        sent.append((state["open"], state["box"]))
+        state["box"] = ""
+        return f"Sent to {state['open']}: {sent[-1][1]}"
+
+    def open_chat(name: str) -> str:
+        opened = state["opened"]
+        assert isinstance(opened, list)
+        opened.append(name)
+        state["open"] = name
+        return f"Opened the WhatsApp chat with {name}."
+
+    monkeypatch.setattr("rolex.interface.handle.put_in_message_box", put)
+    monkeypatch.setattr("rolex.interface.handle.send_message", send)
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", open_chat)
+    monkeypatch.setattr("rolex.interface.handle.message_box_text", lambda: state["box"])
+    monkeypatch.setattr("rolex.interface.handle.open_conversation", lambda: state["open"])
+    return state
+
+
+def send(said: str, chat: dict[str, object], approve: object = True) -> list[Event]:
+    match = recognised(said)
+    assert match is not None, f"{said!r} should have been recognised"
+    asker = None if approve is None else (lambda about, text: bool(approve))
+    return list(carry_out(match, said, FakeProvider(), Config(), asker))
+
+
+def test_a_message_is_typed_and_sent(chat: dict[str, object]) -> None:
+    events = send("send hi to rohan solse", chat)
+
+    assert chat["opened"] == ["rohan solse"]
+    assert chat["sent"] == [("rohan solse", "hi")]
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "Sent to rohan solse" in last.content
+
+
+def test_nothing_is_sent_without_a_yes(chat: dict[str, object]) -> None:
+    """A message cannot be taken back: a moment later it is on someone
+    else's phone."""
+    events = send("send hi to rohan solse", chat, approve=False)
+
+    assert chat["sent"] == []
+    assert chat["box"] == "hi", "it stays in the box for the user to deal with"
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "Not sent" in last.content
+
+
+def test_with_nobody_to_ask_nothing_is_sent(chat: dict[str, object]) -> None:
+    """A piped or scheduled run has no one at the keyboard, and silence is
+    not permission to message a client."""
+    send("send hi to rohan solse", chat, approve=None)
+    assert chat["sent"] == []
+
+
+def test_the_question_names_the_recipient_and_the_words(
+    chat: dict[str, object],
+) -> None:
+    asked: list[tuple[str, str]] = []
+
+    def record(about: str, text: str) -> bool:
+        asked.append((about, text))
+        return False
+
+    match = recognised("send hi to rohan solse")
+    assert match is not None
+    list(carry_out(match, "send hi to rohan solse", FakeProvider(), Config(), record))
+
+    assert asked == [("send:rohan solse", "hi")]
+
+
+def test_send_it_sends_what_is_already_there(chat: dict[str, object]) -> None:
+    chat["box"] = "already typed"
+    send("send it", chat)
+    assert chat["sent"] == [("testing ai", "already typed")]
+    assert chat["opened"] == [], "no chat is opened; the one in front is used"
+
+
+def test_send_it_with_an_empty_box_says_so(chat: dict[str, object]) -> None:
+    events = send("send it", chat)
+    assert chat["sent"] == []
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "nothing in the message box" in last.content
+
+
+def test_a_chat_that_will_not_open_stops_before_typing(
+    chat: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def refuse(name: str) -> str:
+        raise ToolError("no WhatsApp chat called 'ghost' came up in the search")
+
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", refuse)
+
+    events = send("send hi to ghost", chat)
+
+    assert chat["box"] == "", "nothing typed into whatever was open"
+    assert chat["sent"] == []
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "came up in the search" in last.content
+
+
+def test_sending_does_not_type_over_a_half_written_message(
+    chat: dict[str, object],
+) -> None:
+    """Filling the box selects everything and types over it."""
+    chat["box"] = "I was writing thi"
+    events = send("send hi to rohan solse", chat, approve=False)
+
+    assert chat["box"] == "I was writing thi"
+    assert chat["sent"] == []
+    last = events[-1]
+    assert isinstance(last, Answer)
+    assert "already has" in last.content
+
+
+def test_an_approved_replacement_goes_ahead(chat: dict[str, object]) -> None:
+    chat["box"] = "half written"
+    send("send hi to rohan solse", chat, approve=True)
+    assert chat["sent"] == [("rohan solse", "hi")]
+
+
+def test_every_started_step_is_finished(
+    chat: dict[str, object], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An unpaired ToolStarted leaves the user looking at a step that never
+    ended."""
+
+    def refuse(name: str) -> str:
+        raise ToolError("no such chat")
+
+    monkeypatch.setattr("rolex.interface.handle.open_whatsapp_chat", refuse)
+
+    events = send("send hi to ghost", chat)
+
+    started = [e.name for e in events if isinstance(e, ToolStarted)]
+    ended = [e.name for e in events if isinstance(e, (ToolFinished, ToolRefused))]
+    for name in started:
+        assert name in ended, f"{name} was started and never finished"

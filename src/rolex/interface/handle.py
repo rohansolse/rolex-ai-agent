@@ -10,13 +10,19 @@ from collections.abc import Iterator
 from dataclasses import replace
 
 from rolex.agent.commands import Match, understand
-from rolex.agent.loop import Answer, Event, ToolFinished, ToolStarted
+from rolex.agent.loop import Answer, Event, ToolFinished, ToolRefused, ToolStarted
 from rolex.agent.reply import Approve, draft_reply
 from rolex.core.config import Config
 from rolex.core.errors import RolexError
 from rolex.llm.base import LLMProvider, Message
 from rolex.llm.factory import build_provider
-from rolex.tools.chat_page import open_whatsapp_chat
+from rolex.tools.chat_page import (
+    message_box_text,
+    open_conversation,
+    open_whatsapp_chat,
+    put_in_message_box,
+    send_message,
+)
 
 
 def recognised(said: str) -> Match | None:
@@ -45,6 +51,10 @@ def carry_out(
         yield from _remember(_open_chat(match), said, history)
         return
 
+    if match.name in {"send", "send_to"}:
+        yield from _remember(_send(match, approve), said, history)
+        return
+
     yield Answer(f"rolex recognised '{match.name}' but does not know how to do it yet.")
 
 
@@ -65,6 +75,65 @@ def _open_chat(match: Match) -> Iterator[Event]:
         return
 
     yield ToolFinished("open_whatsapp_chat", done)
+    yield Answer(done)
+
+
+def _send(match: Match, approve: Approve | None) -> Iterator[Event]:
+    """Put a message in the box and, once the user agrees, send it.
+
+    Sending is the one thing rolex does that cannot be undone: a moment
+    later the words are on someone else's phone. So the user is always
+    shown who it is going to and exactly what it says, and always asked —
+    whatever else is configured.
+    """
+    step = "open_whatsapp_chat"
+    try:
+        if match.who:
+            yield ToolStarted("open_whatsapp_chat", {"name": match.who})
+            yield ToolFinished("open_whatsapp_chat", open_whatsapp_chat(match.who))
+
+        step = "put_in_message_box"
+
+        if match.rest:
+            # Asked about, like everywhere else: the box may hold something
+            # the user started writing, and filling it types over the lot.
+            existing = message_box_text().strip()
+            if existing and (approve is None or not approve(existing, match.rest)):
+                yield ToolRefused("put_in_message_box", "the box already has something")
+                yield Answer(
+                    f"Not done. The message box already has: {existing}\n\n"
+                    f"Clear it, or ask again once it is empty."
+                )
+                return
+            yield ToolStarted("put_in_message_box", {"text": match.rest})
+            yield ToolFinished("put_in_message_box", put_in_message_box(match.rest))
+
+        waiting = message_box_text().strip()
+        if not waiting:
+            yield Answer("There is nothing in the message box to send.")
+            return
+
+        to = open_conversation() or "this chat"
+    except RolexError as exc:
+        # Named for the step that failed, so the ToolStarted above it has a
+        # matching end rather than being left open.
+        yield ToolFinished(step, str(exc), failed=True)
+        yield Answer(str(exc))
+        return
+
+    if approve is None or not approve(f"send:{to}", waiting):
+        yield ToolRefused("send_message", "the user did not confirm")
+        yield Answer(f"Not sent. It is still in the message box for {to}:\n\n{waiting}")
+        return
+
+    try:
+        done = send_message()
+    except RolexError as exc:
+        yield ToolFinished("send_message", str(exc), failed=True)
+        yield Answer(str(exc))
+        return
+
+    yield ToolFinished("send_message", done)
     yield Answer(done)
 
 

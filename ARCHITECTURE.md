@@ -381,6 +381,28 @@ asked. Hence `reply_model`, separate from `model`.
 Anything unmatched falls through to the agent loop unchanged. The router only
 claims what is certain.
 
+## Sending
+
+The only irreversible thing rolex does. Everything else can be undone by
+closing a window; a sent message is on someone else's phone.
+
+So it is confirmed every time, with the recipient and the exact words on
+screen — and spoken in full in `listen`, where the user is not looking at
+the screen. `allow_destructive` does not bypass it: that switch is for
+whether a class of tool may run at all, not for whether this particular
+message may go to this particular person.
+
+Two things the router has to get right, because getting them wrong sends
+the wrong words to the wrong person:
+
+- **The order depends on the verb.** "Send hi to Rohan" puts the message
+  first; "tell Rohan to call me" puts the person first. Read the wrong way
+  round, the second becomes a message addressed to somebody called "call
+  me".
+- **Half a sentence is declined.** "Send something", "message", "tell me
+  what to do" — anything that does not clearly name both a person and a
+  message goes to the model instead. Guessing is not available here.
+
 ## Opening a WhatsApp chat
 
 Searched for, not hunted in the list: the list is virtualised, so a chat

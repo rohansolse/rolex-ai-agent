@@ -157,35 +157,6 @@ _BOX_POSITION = """
 """
 
 
-_FILL_BOX = """
-(() => {
-  const main = document.querySelector('#main') || document.querySelector('[role=main]');
-  const scope = main || document;
-  const boxes = [...scope.querySelectorAll('[contenteditable="true"][role="textbox"]')];
-
-  // The last one: a chat page often has a search box too, and the message
-  // box is below it.
-  const box = boxes[boxes.length - 1];
-  if (!box) return 'no message box on this page';
-
-  box.focus();
-
-  // execCommand rather than setting textContent: a box built in React
-  // ignores text it was handed and only notices an edit it believes a
-  // person made.
-  document.execCommand('selectAll', false, null);
-  document.execCommand('insertText', false, __TEXT__);
-
-  // Compared against what was asked for, not merely non-empty: if
-  // insertText is refused the old text is still there and this would
-  // otherwise report success over someone else's words.
-  const now = (box.innerText || '').replace(/\\s+/g, ' ').trim();
-  const wanted = __TEXT__.replace(/\\s+/g, ' ').trim();
-  return now === wanted ? 'ok' : 'the message box would not take the text';
-})()
-"""
-
-
 def open_conversation() -> str:
     """Who the open conversation is with, or empty if none is.
 
@@ -207,6 +178,48 @@ _WHO = """
   return header ? (header.innerText || '').split('\\n')[0].trim() : '';
 })()
 """
+
+
+@register(
+    description=(
+        "Send whatever is already in the WhatsApp message box. "
+        "Only when the user has asked for it to be sent."
+    ),
+    safety="destructive",
+)
+def send_message() -> str:
+    """Press Enter in the message box.
+
+    ``destructive`` because it cannot be taken back: the message is on
+    someone else's phone a moment later. Nothing else rolex does leaves the
+    machine.
+    """
+    _require_chrome()
+
+    waiting = message_box_text().strip()
+    if not waiting:
+        raise ToolError("there is nothing in the message box to send")
+
+    to = open_conversation() or "this chat"
+
+    _focus()
+    where = _javascript(_BOX_POSITION)
+    try:
+        spot = json.loads(where or "{}")
+    except json.JSONDecodeError as exc:
+        raise ToolError("could not find the message box") from exc
+    if "x" not in spot:
+        raise ToolError("could not find the message box")
+
+    pointer.click(float(spot["x"]), float(spot["y"]))
+    _type("key code 36")
+
+    time.sleep(TYPING_SETTLE)
+    left = message_box_text().strip()
+    if left == waiting:
+        raise ToolError(f"the message is still in the box; nothing was sent to {to}")
+
+    return f"Sent to {to}: {waiting}"
 
 
 def message_box_text() -> str:
@@ -293,11 +306,14 @@ def open_whatsapp_chat(name: str) -> str:
     if typed != "ok":
         raise ToolError(typed or "could not find WhatsApp's search box")
 
-    spot = _wait_for_result(wanted)
-    pointer.click(float(spot["x"]), float(spot["y"]))
-
-    opened = _wait_until_open(wanted)
-    _javascript(_CLEAR_SEARCH)
+    # Cleared however this ends. A search left in place hides every other
+    # chat from the next call, which is exactly what it is here to prevent.
+    try:
+        spot = _wait_for_result(wanted)
+        pointer.click(float(spot["x"]), float(spot["y"]))
+        opened = _wait_until_open(wanted)
+    finally:
+        _javascript(_CLEAR_SEARCH)
     if not opened:
         raise ToolError(
             f"searched for {wanted!r} but the conversation did not open. "
@@ -330,7 +346,12 @@ def _wait_for_result(wanted: str) -> dict[str, Any]:
     for _ in range(SEARCH_TRIES):
         found = _javascript(script)
         if found and found != "waiting":
-            spot: dict[str, Any] = json.loads(found)
+            try:
+                spot: dict[str, Any] = json.loads(found)
+            except json.JSONDecodeError as exc:
+                # Escaping here would kill the session: the REPL catches
+                # our own errors, not whatever the page happened to return.
+                raise ToolError(f"could not read the search results: {found[:60]!r}") from exc
             if "error" in spot:
                 raise ToolError(str(spot["error"]))
             if steady and steady["x"] == spot["x"] and steady["y"] == spot["y"]:

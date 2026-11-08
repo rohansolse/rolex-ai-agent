@@ -143,3 +143,76 @@ def test_the_word_group_is_not_part_of_the_name() -> None:
     match = understand("open the testing ai group")
     assert match is not None
     assert "group" not in match.rest
+
+
+# --- sending --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("said", ["send it", "send", "send that", "send the message"])
+def test_sending_what_is_already_typed_is_recognised(said: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == "send"
+    assert not match.who
+
+
+@pytest.mark.parametrize(
+    ("said", "who", "text"),
+    [
+        ("send hi to rohan solse", "rohan solse", "hi"),
+        ("send a message to priya saying hello how are you", "priya", "hello how are you"),
+        ("message Priya saying hi", "Priya", "hi"),
+        ("tell rohan that we are closed tomorrow", "rohan", "we are closed tomorrow"),
+        ("whatsapp the testing ai group saying done", "testing ai", "done"),
+    ],
+)
+def test_who_and_what_are_separated(said: str, who: str, text: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert match.name == "send_to"
+    assert match.who == who
+    assert match.rest == text
+
+
+@pytest.mark.parametrize("said", ["send something", "message", "tell"])
+def test_half_a_sentence_is_left_to_the_model(said: str) -> None:
+    """Guessing here would send the wrong words to the wrong person."""
+    match = understand(said)
+    assert match is None or match.name != "send_to"
+
+
+@pytest.mark.parametrize(
+    ("said", "who", "text"),
+    [
+        # The person comes first after "tell" and "message". Read the other
+        # way round, this becomes a message to somebody called "call me".
+        ("tell rohan to call me", "rohan", "call me"),
+        ("message rohan to confirm tomorrow", "rohan", "confirm tomorrow"),
+        # And after "send" the message comes first.
+        ("send hi to rohan solse", "rohan solse", "hi"),
+    ],
+)
+def test_the_order_depends_on_the_verb(said: str, who: str, text: str) -> None:
+    match = understand(said)
+    assert match is not None
+    assert (match.who, match.rest) == (who, text)
+
+
+@pytest.mark.parametrize("said", ["send that to rohan", "send it to priya"])
+def test_sending_what_is_typed_to_someone_named(said: str) -> None:
+    """Falling through to the bare "send" would drop the recipient and
+    post it to whichever chat happened to be in front."""
+    match = understand(said)
+    assert match is not None
+    assert match.name == "send_to"
+    assert match.who
+    assert match.rest == "", "the words are whatever is in the box"
+
+
+@pytest.mark.parametrize(
+    "said",
+    ["tell me what to do", "tell me how to open chrome", "message me the details"],
+)
+def test_tell_me_is_a_question_not_a_message(said: str) -> None:
+    match = understand(said)
+    assert match is None or match.name != "send_to"

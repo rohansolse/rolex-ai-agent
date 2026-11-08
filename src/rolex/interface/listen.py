@@ -231,14 +231,20 @@ class SpokenConsent:
     voice: Speaker
     tries: int = CONSENT_TRIES
 
-    def replace_message(self, existing: str, draft: str) -> bool:
-        """Ask out loud before typing over something already in the box.
+    def replace_message(self, about: str, text: str) -> bool:
+        """Ask out loud before doing something that cannot be taken back.
 
-        Filling the box selects everything and types over it. A half-written
-        message disappearing without a word is not something to do to
-        someone who is only talking to their computer.
+        Two questions share this: replacing a half-written message, and
+        sending. Sending is read back in full, because the user cannot see
+        the screen while they are talking to it and the words are about to
+        reach someone else.
         """
-        print(f"{STEP}the message box already has: {short(existing, 60)}", flush=True)
+        if about.startswith("send:"):
+            who = about.removeprefix("send:")
+            print(f"{STEP}to {who}: {text}", flush=True)
+            return self._yes_or_no(f"Send this to {who}? {text}")
+
+        print(f"{STEP}the message box already has: {short(about, 60)}", flush=True)
         return self._yes_or_no("There is already something in the message box. Replace it?")
 
     def ask(self, tool: Tool, arguments: Mapping[str, Any]) -> bool:
